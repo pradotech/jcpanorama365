@@ -1,17 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Clock, User } from 'lucide-react';
 import CategoryBadge from '../ui/CategoryBadge';
+import ImageCarousel from './ImageCarousel';
+import { getArticleImages } from '../../lib/imageUtils';
+import { formatTimeAgo } from '../../lib/dateUtils';
 
 export default function NewsCard({ article, variant = 'default' }) {
-  const formatTimeAgo = (dateStr) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}min`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h`;
-    const days = Math.floor(hours / 24);
-    return `${days}d`;
-  };
+  const images = getArticleImages(article);
 
   if (variant === 'compact') {
     return (
@@ -20,12 +15,13 @@ export default function NewsCard({ article, variant = 'default' }) {
         className="group flex flex-col bg-white rounded-xl overflow-hidden shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-0.5"
       >
         <div className="relative aspect-[16/10] overflow-hidden">
-          <img
-            src={article.image_url}
+          <ImageCarousel
+            images={images}
             alt={article.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            aspectRatio="aspect-[16/10]"
+            imageClassName="group-hover:scale-105 transition-transform duration-500"
           />
-          <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
+          <div className="absolute bottom-2 left-2 flex items-center gap-1.5 z-10 pointer-events-none">
             <CategoryBadge categoryId={article.category} size="sm" />
           </div>
         </div>
@@ -83,10 +79,13 @@ export default function NewsCard({ article, variant = 'default' }) {
         className="group flex gap-4 bg-white rounded-xl overflow-hidden shadow-card hover:shadow-card-hover transition-all duration-300"
       >
         <div className="w-40 h-28 md:w-48 md:h-32 shrink-0 overflow-hidden relative">
-          <img
-            src={article.image_url}
+          <ImageCarousel
+            images={images}
             alt={article.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            aspectRatio="w-full h-full"
+            className="w-full h-full"
+            imageClassName="group-hover:scale-105 transition-transform duration-500"
+            showDots={false}
           />
         </div>
         <div className="flex flex-col justify-center py-3.5 pr-4 min-w-0 flex-1">
@@ -141,12 +140,13 @@ export default function NewsCard({ article, variant = 'default' }) {
       className="group flex flex-col bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
     >
       <div className="relative aspect-[16/10] overflow-hidden">
-        <img
-          src={article.image_url}
+        <ImageCarousel
+          images={images}
           alt={article.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          aspectRatio="aspect-[16/10]"
+          imageClassName="group-hover:scale-105 transition-transform duration-500"
         />
-        <div className="absolute bottom-3 left-3 flex items-center gap-2">
+        <div className="absolute bottom-3 left-3 flex items-center gap-2 z-10 pointer-events-none">
           <CategoryBadge categoryId={article.category} size="sm" />
         </div>
       </div>

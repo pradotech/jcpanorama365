@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Save, ArrowLeft, Upload, X, Loader2, UserCheck, Users, Trash2 } from 'lucide-react';
+import { Save, ArrowLeft, ArrowRight, Upload, X, Loader2, UserCheck, Users, Trash2, Images, Star, ArrowUp, ArrowDown, Plus } from 'lucide-react';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import { useNews } from '../../hooks/useNews';
 import { useColumnists } from '../../hooks/useColumnists';
 import { uploadImage } from '../../lib/storage';
+import { getArticleImages } from '../../lib/imageUtils';
 import categories from '../../data/categories';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -28,10 +29,11 @@ const emptyArticle = {
   content: '',
   category: 'geral',
   image_url: '',
+  images: [],
   author: '',
   status: 'draft',
   featured: false,
-  show_on_home: false,
+  show_on_home: true,
   home_order: 0,
   columnist_id: '',
   columnist_name: '',
@@ -52,14 +54,18 @@ export default function AdminNewsForm() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [imagePreview, setImagePreview] = useState('');
+  const [uploadProgressText, setUploadProgressText] = useState('');
 
   useEffect(() => {
     if (isEditing) {
       const article = getNewsById(id);
       if (article) {
-        setForm(article);
-        if (article.image_url) setImagePreview(article.image_url);
+        const articleImages = getArticleImages(article);
+        setForm({
+          ...article,
+          images: articleImages,
+          image_url: articleImages[0] || article.image_url || '',
+        });
       } else {
         navigate('/admin/noticias');
       }
@@ -73,51 +79,104 @@ export default function AdminNewsForm() {
     }
   };
 
-  // Upload de imagem
+  // Upload de imagens (permite múltiplas fotos)
   const handleImageUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    // Validação do arquivo
+    // Validação dos arquivos
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (file.type && !allowedTypes.includes(file.type) && !file.type.startsWith('image/')) {
+    const invalidFile = files.find(file => file.type && !allowedTypes.includes(file.type) && !file.type.startsWith('image/'));
+    if (invalidFile) {
       setErrors(prev => ({ ...prev, image_url: 'Formato não suportado. Use JPG, PNG, WebP ou GIF.' }));
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors(prev => ({ ...prev, image_url: 'A imagem deve ter no máximo 5MB.' }));
+    const oversizedFile = files.find(file => file.size > 5 * 1024 * 1024);
+    if (oversizedFile) {
+      setErrors(prev => ({ ...prev, image_url: 'Cada imagem deve ter no máximo 5MB.' }));
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
-
-    // Preview local imediato
-    const localPreview = URL.createObjectURL(file);
-    setImagePreview(localPreview);
 
     setUploading(true);
     setErrors(prev => ({ ...prev, image_url: '' }));
 
     try {
-      const publicUrl = await uploadImage(file);
-      setForm(prev => ({ ...prev, image_url: publicUrl }));
-      setImagePreview(publicUrl);
+      const uploadedUrls = [];
+      for (let i = 0; i < files.length; i++) {
+        setUploadProgressText(`Enviando foto ${i + 1} de ${files.length}...`);
+        const publicUrl = await uploadImage(files[i]);
+        uploadedUrls.push(publicUrl);
+      }
+
+      setForm(prev => {
+        const currentList = Array.isArray(prev.images) && prev.images.length > 0
+          ? prev.images
+          : (prev.image_url ? [prev.image_url] : []);
+        const updated = [...currentList, ...uploadedUrls];
+        return {
+          ...prev,
+          images: updated,
+          image_url: updated[0] || '',
+        };
+      });
     } catch (err) {
       console.error('Erro no upload:', err);
-      setErrors(prev => ({ ...prev, image_url: err.message }));
-      setImagePreview(form.image_url || '');
+      setErrors(prev => ({ ...prev, image_url: err.message || 'Erro ao enviar imagens' }));
     } finally {
       setUploading(false);
-      URL.revokeObjectURL(localPreview);
+      setUploadProgressText('');
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const removeImage = () => {
-    setForm(prev => ({ ...prev, image_url: '' }));
-    setImagePreview('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  const removeImageAt = (index) => {
+    setForm(prev => {
+      const currentList = Array.isArray(prev.images) && prev.images.length > 0
+        ? prev.images
+        : (prev.image_url ? [prev.image_url] : []);
+      const updated = currentList.filter((_, idx) => idx !== index);
+      return {
+        ...prev,
+        images: updated,
+        image_url: updated[0] || '',
+      };
+    });
+  };
+
+  const makeCover = (index) => {
+    if (index === 0) return;
+    setForm(prev => {
+      const currentList = Array.isArray(prev.images) && prev.images.length > 0
+        ? prev.images
+        : (prev.image_url ? [prev.image_url] : []);
+      const item = currentList[index];
+      const rest = currentList.filter((_, idx) => idx !== index);
+      const updated = [item, ...rest];
+      return {
+        ...prev,
+        images: updated,
+        image_url: updated[0] || '',
+      };
+    });
+  };
+
+  const moveImage = (fromIndex, toIndex) => {
+    setForm(prev => {
+      const currentList = Array.isArray(prev.images) && prev.images.length > 0
+        ? [...prev.images]
+        : (prev.image_url ? [prev.image_url] : []);
+      if (toIndex < 0 || toIndex >= currentList.length) return prev;
+      const [moved] = currentList.splice(fromIndex, 1);
+      currentList.splice(toIndex, 0, moved);
+      return {
+        ...prev,
+        images: currentList,
+        image_url: currentList[0] || '',
+      };
+    });
   };
 
   const validate = () => {
@@ -126,7 +185,8 @@ export default function AdminNewsForm() {
     if (!form.subtitle.trim()) newErrors.subtitle = 'Subtítulo é obrigatório';
     if (!form.content.trim() || form.content === '<p><br></p>') newErrors.content = 'Conteúdo é obrigatório';
     if (!form.author.trim()) newErrors.author = 'Autor é obrigatório';
-    if (!form.image_url.trim()) newErrors.image_url = 'Imagem de capa é obrigatória';
+    const hasImage = (Array.isArray(form.images) && form.images.length > 0) || Boolean(form.image_url && form.image_url.trim());
+    if (!hasImage) newErrors.image_url = 'Ao menos uma imagem de capa é obrigatória';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -145,8 +205,14 @@ export default function AdminNewsForm() {
     if (!validate()) return;
 
     setSaving(true);
+    const imagesList = Array.isArray(form.images) && form.images.length > 0
+      ? form.images
+      : (form.image_url ? [form.image_url] : []);
+
     const cleanedForm = {
       ...form,
+      images: imagesList,
+      image_url: imagesList[0] || '',
       content: cleanContent(form.content),
     };
 
@@ -320,55 +386,133 @@ export default function AdminNewsForm() {
             </div>
           )}
 
-          {/* Imagem de Capa — Upload */}
-          <div>
-            <label className="text-sm font-medium text-navy-700 block mb-1.5">
-              Imagem de Capa
-            </label>
+          {/* Fotos da Publicação (Capa e Galeria/Carrossel) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-bold text-navy-900 flex items-center gap-2">
+                <Images size={16} className="text-accent-600" />
+                <span>Fotos da Publicação</span>
+                {form.images?.length > 0 && (
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-navy-100 text-navy-700">
+                    {form.images.length} {form.images.length === 1 ? 'foto' : 'fotos'}
+                  </span>
+                )}
+              </label>
+              {form.images?.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-accent-600 hover:text-accent-700 hover:bg-accent-50 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <Plus size={14} />
+                  <span>Adicionar fotos</span>
+                </button>
+              )}
+            </div>
 
-            {imagePreview ? (
+            {form.images && form.images.length > 0 ? (
               <div className="space-y-3">
-                <div className="relative rounded-xl overflow-hidden border border-navy-200 bg-navy-50">
-                  <img
-                    src={imagePreview}
-                    alt="Preview da capa"
-                    className="w-full h-48 sm:h-64 object-cover"
-                    onError={() => setImagePreview('')}
-                  />
-                  {uploading && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                      <div className="flex items-center gap-2 text-white text-sm font-medium bg-black/50 px-4 py-2 rounded-lg">
-                        <Loader2 size={18} className="animate-spin text-accent-400" />
-                        <span>Enviando nova imagem...</span>
+                {/* Visualização de Fotos Adicionadas em Grade */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {form.images.map((imgUrl, index) => (
+                    <div
+                      key={index}
+                      className={`relative rounded-xl overflow-hidden border-2 bg-navy-50 group/thumb transition-all ${
+                        index === 0
+                          ? 'border-accent-500 ring-2 ring-accent-100 shadow-sm'
+                          : 'border-navy-200 hover:border-navy-300'
+                      }`}
+                    >
+                      <div className="aspect-[4/3] w-full overflow-hidden">
+                        <img
+                          src={imgUrl}
+                          alt={`Foto ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      {/* Tag de Capa ou Posição */}
+                      <div className="absolute top-1.5 left-1.5 z-10 pointer-events-none">
+                        {index === 0 ? (
+                          <span className="bg-accent-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs flex items-center gap-1">
+                            <Star size={10} className="fill-white" />
+                            Capa
+                          </span>
+                        ) : (
+                          <span className="bg-black/60 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-md backdrop-blur-xs">
+                            #{index + 1}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Ações da foto visíveis no hover (ou sempre em mobile) */}
+                      <div className="absolute inset-0 bg-black/45 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex flex-col justify-between p-2">
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => removeImageAt(index)}
+                            title="Remover foto"
+                            className="w-7 h-7 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center cursor-pointer transition-colors shadow-sm"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="flex items-center gap-1">
+                            {index > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => moveImage(index, index - 1)}
+                                title="Mover para trás"
+                                className="w-6 h-6 rounded-md bg-white/90 hover:bg-white text-navy-800 flex items-center justify-center cursor-pointer transition-colors shadow-xs"
+                              >
+                                <ArrowLeft size={12} />
+                              </button>
+                            )}
+                            {index < form.images.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={() => moveImage(index, index + 1)}
+                                title="Mover para frente"
+                                className="w-6 h-6 rounded-md bg-white/90 hover:bg-white text-navy-800 flex items-center justify-center cursor-pointer transition-colors shadow-xs"
+                              >
+                                <ArrowRight size={12} />
+                              </button>
+                            )}
+                          </div>
+
+                          {index !== 0 && (
+                            <button
+                              type="button"
+                              onClick={() => makeCover(index)}
+                              title="Definir como capa principal"
+                              className="text-[10px] font-bold bg-white/90 hover:bg-white text-navy-900 px-2 py-1 rounded-md transition-colors shadow-xs cursor-pointer"
+                            >
+                              Tornar capa
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  )}
+                  ))}
                 </div>
 
-                {/* Controles para trocar ou remover imagem - visíveis tanto no celular quanto no computador */}
-                {!uploading && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 text-sm font-medium rounded-lg bg-navy-100 text-navy-800 hover:bg-navy-200 transition-colors cursor-pointer"
-                    >
-                      <Upload size={16} className="text-navy-600" />
-                      <span>Trocar foto</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={removeImage}
-                      className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 text-sm font-medium rounded-lg text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                    >
-                      <Trash2 size={16} />
-                      <span>Remover</span>
-                    </button>
-                    <span className="text-xs text-navy-400 ml-auto hidden sm:inline">
-                      JPG, PNG, WebP ou GIF • Máximo 5MB
-                    </span>
-                  </div>
-                )}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-navy-500">
+                  <p>
+                    💡 A foto marcada como <strong>Capa</strong> (#1) é a principal. Quando houver 2 ou mais fotos, elas serão exibidas em <strong>carrossel automático navegável</strong> nos cards e na matéria.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-navy-100 hover:bg-navy-200 text-navy-800 font-medium transition-colors cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>Adicionar mais fotos</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div
@@ -377,17 +521,25 @@ export default function AdminNewsForm() {
               >
                 <Upload size={32} className="mx-auto text-navy-300 group-hover:text-accent-500 transition-colors mb-3" />
                 <p className="text-sm font-medium text-navy-600 group-hover:text-accent-600 transition-colors">
-                  Clique para enviar uma imagem
+                  Clique para enviar imagens (uma ou várias)
                 </p>
                 <p className="text-xs text-navy-400 mt-1">
-                  JPG, PNG, WebP ou GIF • Máximo 5MB
+                  JPG, PNG, WebP ou GIF • Máximo 5MB por foto • Selecione vários arquivos para criar um carrossel
                 </p>
+              </div>
+            )}
+
+            {uploading && (
+              <div className="flex items-center gap-2 text-accent-700 bg-accent-50 border border-accent-200 px-4 py-2.5 rounded-lg text-sm font-medium animate-pulse">
+                <Loader2 size={16} className="animate-spin text-accent-600 shrink-0" />
+                <span>{uploadProgressText || 'Enviando imagens...'}</span>
               </div>
             )}
 
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               accept="image/jpeg,image/png,image/webp,image/gif,image/*"
               onChange={handleImageUpload}
               className="hidden"

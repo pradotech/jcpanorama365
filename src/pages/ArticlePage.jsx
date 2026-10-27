@@ -1,26 +1,43 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Clock, User, ArrowLeft, ArrowRight, Share2, Check } from 'lucide-react';
+import { Clock, User, ArrowLeft, ArrowRight, Share2, Check, ChevronLeft, ChevronRight, Images } from 'lucide-react';
 import { useNews } from '../hooks/useNews';
 import { getCategoryById } from '../data/categories';
 import CategoryBadge from '../components/ui/CategoryBadge';
 import NewsCard from '../components/news/NewsCard';
 import { recordNewsView } from '../services/analyticsService';
+import { getArticleImages } from '../lib/imageUtils';
 
 export default function ArticlePage() {
   const { slug } = useParams();
   const { getNewsBySlug, getNewsByCategory } = useNews();
   const article = getNewsBySlug(slug);
   const [copied, setCopied] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isGalleryHovered, setIsGalleryHovered] = useState(false);
   const recordedArticleIdRef = useRef(null);
 
+  const images = getArticleImages(article);
+
   useEffect(() => {
+    setActiveImageIndex(0);
     window.scrollTo({
       top: 0,
       left: 0,
       behavior: 'instant'
     });
   }, [slug]);
+
+  // Autoplay da galeria de fotos na matéria (4.5s)
+  useEffect(() => {
+    if (!images || images.length <= 1 || isGalleryHovered) return;
+
+    const timer = setInterval(() => {
+      setActiveImageIndex(prev => (prev === images.length - 1 ? 0 : prev + 1));
+    }, 4500);
+
+    return () => clearInterval(timer);
+  }, [images, isGalleryHovered]);
 
   useEffect(() => {
     if (article?.id && recordedArticleIdRef.current !== article.id) {
@@ -260,16 +277,84 @@ export default function ArticlePage() {
           </div>
         </div>
 
-        {/* Imagem Principal da Notícia (Exibida 100% inteira sem cortes tanto em mobile quanto desktop) */}
-        {article.image_url && (
-          <figure className="mb-4 sm:mb-6 rounded-2xl overflow-hidden shadow-card border border-navy-100/80 bg-slate-50">
-            <img
-              src={article.image_url}
-              alt={article.title}
-              className="w-full h-auto max-h-[620px] object-contain mx-auto block"
-              loading="eager"
-            />
-          </figure>
+        {/* Galeria de Imagens da Notícia (Exibida com suporte a carrossel se houver múltiplas fotos) */}
+        {images.length > 0 && (
+          <div className="mb-4 sm:mb-6 space-y-3">
+            <figure
+              className="relative rounded-2xl overflow-hidden shadow-card border border-navy-100/80 bg-slate-900 group"
+              onMouseEnter={() => setIsGalleryHovered(true)}
+              onMouseLeave={() => setIsGalleryHovered(false)}
+            >
+              {images.length > 1 ? (
+                <div
+                  className="flex w-full transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] will-change-transform"
+                  style={{ transform: `translateX(-${activeImageIndex * 100}%)` }}
+                >
+                  {images.map((imgSrc, idx) => (
+                    <div key={idx} className="w-full shrink-0 flex items-center justify-center bg-slate-950/40">
+                      <img
+                        src={imgSrc}
+                        alt={`${article.title} - Foto ${idx + 1}`}
+                        className="w-full h-auto max-h-[620px] object-contain mx-auto block pointer-events-none"
+                        loading={idx === 0 ? 'eager' : 'lazy'}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <img
+                  src={images[0]}
+                  alt={article.title}
+                  className="w-full h-auto max-h-[620px] object-contain mx-auto block"
+                  loading="eager"
+                />
+              )}
+
+              {images.length > 1 && (
+                <>
+                  {/* Seta Esquerda */}
+                  <button
+                    type="button"
+                    onClick={() => setActiveImageIndex(prev => (prev === 0 ? images.length - 1 : prev - 1))}
+                    aria-label="Foto anterior"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-lg select-none"
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+
+                  {/* Seta Direita */}
+                  <button
+                    type="button"
+                    onClick={() => setActiveImageIndex(prev => (prev === images.length - 1 ? 0 : prev + 1))}
+                    aria-label="Próxima foto"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-lg select-none"
+                  >
+                    <ChevronRight size={22} />
+                  </button>
+                </>
+              )}
+            </figure>
+
+            {/* Miniaturas navegáveis para múltiplas imagens */}
+            {images.length > 1 && (
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                {images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveImageIndex(idx)}
+                    className={`relative w-16 h-14 sm:w-20 sm:h-16 rounded-lg overflow-hidden shrink-0 transition-all border-2 cursor-pointer ${
+                      idx === activeImageIndex
+                        ? 'border-accent-500 ring-2 ring-accent-200 opacity-100 scale-102'
+                        : 'border-transparent opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img src={img} alt={`Miniatura ${idx + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Article Content */}

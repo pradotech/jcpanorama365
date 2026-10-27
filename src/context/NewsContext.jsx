@@ -92,10 +92,19 @@ export function NewsProvider({ children }) {
 
     if (rawData && Array.isArray(rawData) && rawData.length > 0) {
       const normalizedData = rawData.map(item => {
+        const images = Array.isArray(item.images) && item.images.length > 0
+          ? item.images
+          : (item.image_url ? [item.image_url] : []);
+
+        const normalized = {
+          ...item,
+          images,
+        };
+
         if (item.columnist_id || item.columnist_name) {
-          return { ...item, category: 'colunistas' };
+          return { ...normalized, category: 'colunistas' };
         }
-        return item;
+        return normalized;
       });
       setNews(normalizedData);
       saveToStorage(normalizedData);
@@ -148,17 +157,23 @@ export function NewsProvider({ children }) {
     const isColumnist = Boolean(newArticle.columnist_id) || Boolean(newArticle.columnist_name);
     const category = isColumnist ? 'colunistas' : (newArticle.category || 'geral');
 
+    const imagesArray = Array.isArray(newArticle.images) && newArticle.images.length > 0
+      ? newArticle.images
+      : (newArticle.image_url ? [newArticle.image_url] : []);
+    const coverUrl = imagesArray[0] || newArticle.image_url || '';
+
     const article = {
       title: newArticle.title,
       subtitle: newArticle.subtitle,
       content: newArticle.content,
       category,
-      image_url: newArticle.image_url,
+      image_url: coverUrl,
+      images: imagesArray,
       author: newArticle.author,
       status: newArticle.status || 'draft',
       featured: newArticle.featured || false,
-      show_on_home: newArticle.show_on_home || false,
-      home_order: newArticle.home_order || 0,
+      show_on_home: newArticle.show_on_home !== undefined ? Boolean(newArticle.show_on_home) : true,
+      home_order: Number(newArticle.home_order) || 0,
       columnist_id: newArticle.columnist_id || null,
       columnist_name: newArticle.columnist_name || null,
       columnist_avatar: newArticle.columnist_avatar || null,
@@ -170,20 +185,35 @@ export function NewsProvider({ children }) {
         : null,
     };
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('news')
       .insert(article)
       .select()
       .single();
+
+    // Fallback caso a coluna 'images' ainda não tenha sido criada no Supabase
+    if (error && error.message && error.message.includes('images')) {
+      console.warn('Coluna "images" ainda não existe no Supabase. Salvando apenas image_url...');
+      const { images: _unused, ...articleWithoutImages } = article;
+      const retry = await supabase
+        .from('news')
+        .insert(articleWithoutImages)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('Erro ao criar notícia:', error.message);
       throw error;
     }
 
-    const savedArticle = (data.columnist_id || data.columnist_name)
-      ? { ...data, category: 'colunistas' }
-      : data;
+    const savedArticle = {
+      ...data,
+      images: data.images || imagesArray,
+      category: (data.columnist_id || data.columnist_name) ? 'colunistas' : data.category,
+    };
 
     setNews(prev => {
       const updated = [savedArticle, ...prev];
@@ -200,6 +230,12 @@ export function NewsProvider({ children }) {
       updateData.slug = generateSlug(updates.title);
     }
 
+    if (updates.images && Array.isArray(updates.images)) {
+      if (!updates.image_url && updates.images.length > 0) {
+        updateData.image_url = updates.images[0];
+      }
+    }
+
     if (updates.columnist_id || updates.columnist_name) {
       if (!updates.category || updates.category === 'variedades') {
         updateData.category = 'colunistas';
@@ -207,28 +243,43 @@ export function NewsProvider({ children }) {
     }
     
     if (updates.status === 'published') {
-      // Se está publicando agora, verificar se já tem published_at
       const current = news.find(n => n.id === id);
       if (current && !current.published_at) {
         updateData.published_at = new Date().toISOString();
       }
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('news')
       .update(updateData)
       .eq('id', id)
       .select()
       .single();
 
+    // Fallback caso a coluna 'images' ainda não tenha sido criada no Supabase
+    if (error && error.message && error.message.includes('images')) {
+      console.warn('Coluna "images" ainda não existe no Supabase. Atualizando sem campo images...');
+      const { images: _unused, ...updateWithoutImages } = updateData;
+      const retry = await supabase
+        .from('news')
+        .update(updateWithoutImages)
+        .eq('id', id)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
     if (error) {
       console.error('Erro ao atualizar notícia:', error.message);
       throw error;
     }
 
-    const updatedArticle = (data.columnist_id || data.columnist_name)
-      ? { ...data, category: 'colunistas' }
-      : data;
+    const updatedArticle = {
+      ...data,
+      images: data.images || updates.images || (data.image_url ? [data.image_url] : []),
+      category: (data.columnist_id || data.columnist_name) ? 'colunistas' : data.category,
+    };
 
     setNews(prev => {
       const updated = prev.map(item => item.id === id ? updatedArticle : item);
@@ -301,19 +352,25 @@ export function NewsProvider({ children }) {
 
   const getFeaturedNews = useCallback(() => {
     return news
-      .filter(item => item.featured && item.status === 'published')
-      .sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+      .filter(item => item.featured && item.status === 'published' && item.show_on_home !== false)
+      .sort((a, b) => {
+        const orderA = (a.home_order && Number(a.home_order) > 0) ? Number(a.home_order) : 999999;
+        const orderB = (b.home_order && Number(b.home_order) > 0) ? Number(b.home_order) : 999999;
+        if (orderA !== orderB) return orderA - orderB;
+        return new Date(b.published_at || 0) - new Date(a.published_at || 0);
+      });
   }, [news]);
 
   const getHomeNews = useCallback(() => {
     return news
       .filter(item => item.show_on_home && item.status === 'published')
       .sort((a, b) => {
-        // Ordenar por home_order (menor primeiro), depois por data
-        const orderA = a.home_order ?? 999;
-        const orderB = b.home_order ?? 999;
+        // Notícias com home_order > 0 têm prioridade fixa (1, 2, 3...)
+        // Notícias sem ordem definida (0, null, undefined) ficam depois, ordenadas por data mais recente
+        const orderA = (a.home_order && Number(a.home_order) > 0) ? Number(a.home_order) : 999999;
+        const orderB = (b.home_order && Number(b.home_order) > 0) ? Number(b.home_order) : 999999;
         if (orderA !== orderB) return orderA - orderB;
-        return new Date(b.published_at) - new Date(a.published_at);
+        return new Date(b.published_at || 0) - new Date(a.published_at || 0);
       });
   }, [news]);
 

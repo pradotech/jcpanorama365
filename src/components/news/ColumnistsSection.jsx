@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Feather, ArrowRight, BookOpen, Clock } from 'lucide-react';
 import { useColumnists } from '../../hooks/useColumnists';
+import { formatTimeAgo } from '../../lib/dateUtils';
 
 export default function ColumnistsSection({ articles = [] }) {
   const { columnists } = useColumnists();
@@ -9,17 +10,6 @@ export default function ColumnistsSection({ articles = [] }) {
   if (articles.length === 0 && columnists.length === 0) {
     return null;
   }
-
-  const formatTimeAgo = (dateStr) => {
-    if (!dateStr) return '';
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}min atrás`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h atrás`;
-    const days = Math.floor(hours / 24);
-    return `${days}d atrás`;
-  };
 
   // Ordenar artigos pelo mais recente
   const sortedArticles = [...articles].sort((a, b) => {
@@ -139,7 +129,7 @@ export default function ColumnistsSection({ articles = [] }) {
                 <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs text-navy-300">
                   <span className="flex items-center gap-1 text-navy-300">
                     <Clock size={12} className="text-accent-400" />
-                    {formatTimeAgo(article.published_at)}
+                    {formatTimeAgo(article.published_at, { withSuffix: true })}
                   </span>
                   <Link
                     to={`/noticia/${article.slug}`}

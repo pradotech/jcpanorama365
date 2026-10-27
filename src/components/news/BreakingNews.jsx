@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { useNews } from '../../hooks/useNews';
 
 export default function BreakingNews() {
-  const { getPublishedNews } = useNews();
-  const latest = getPublishedNews().slice(0, 8);
+  const { getHomeNews } = useNews();
+  const latest = getHomeNews().slice(0, 8);
 
   if (latest.length === 0) return null;
 

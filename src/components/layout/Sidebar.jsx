@@ -3,21 +3,12 @@ import { Clock, TrendingUp, ArrowRight } from 'lucide-react';
 import { useNews } from '../../hooks/useNews';
 import CategoryBadge from '../ui/CategoryBadge';
 import EditionCard from '../ui/EditionCard';
+import { formatTimeAgo } from '../../lib/dateUtils';
 
-export default function Sidebar() {
-  const { getPublishedNews } = useNews();
-  const allNews = getPublishedNews();
+export default function Sidebar({ onlyHome = false }) {
+  const { getPublishedNews, getHomeNews } = useNews();
+  const allNews = onlyHome ? getHomeNews() : getPublishedNews();
   const latestNews = allNews.slice(0, 6);
-
-  const formatTimeAgo = (dateStr) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}min atrás`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h atrás`;
-    const days = Math.floor(hours / 24);
-    return `${days}d atrás`;
-  };
 
   return (
     <aside className="space-y-8">
@@ -74,7 +65,7 @@ export default function Sidebar() {
               <div className="flex items-center justify-between">
                 <CategoryBadge categoryId={item.category} size="sm" />
                 <span className="text-xs text-navy-400">
-                  {formatTimeAgo(item.published_at)}
+                  {formatTimeAgo(item.published_at, { withSuffix: true })}
                 </span>
               </div>
             </Link>
