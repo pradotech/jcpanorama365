@@ -4,9 +4,47 @@ import CategoryBadge from '../ui/CategoryBadge';
 import ImageCarousel from './ImageCarousel';
 import { getArticleImages } from '../../lib/imageUtils';
 import { formatTimeAgo } from '../../lib/dateUtils';
+import { getCategoryById } from '../../data/categories';
 
 export default function NewsCard({ article, variant = 'default' }) {
   const images = getArticleImages(article);
+
+  if (variant === 'editorial-list') {
+    const category = getCategoryById(article.category);
+    return (
+      <Link
+        to={`/noticia/${article.slug}`}
+        className="group flex gap-3.5 items-center py-3.5 border-b border-navy-100/80 last:border-b-0 hover:bg-navy-50/40 transition-colors px-0.5"
+      >
+        {/* Thumbnail retangular à esquerda */}
+        <div className="w-28 xs:w-32 aspect-[16/10] rounded-xl overflow-hidden shrink-0 relative bg-navy-100/60 shadow-xs">
+          <ImageCarousel
+            images={images}
+            alt={article.title}
+            aspectRatio="w-full h-full"
+            className="w-full h-full"
+            imageClassName="group-hover:scale-105 transition-transform duration-300 w-full h-full object-cover"
+            showDots={false}
+          />
+        </div>
+
+        {/* Informações à direita */}
+        <div className="flex flex-col justify-center min-w-0 flex-1">
+          {category && (
+            <span
+              className="text-[11px] font-black uppercase tracking-wider mb-1 block leading-none"
+              style={{ color: category.color || '#16a34a' }}
+            >
+              {category.name}
+            </span>
+          )}
+          <h3 className="text-sm xs:text-[15px] font-bold text-navy-950 group-hover:text-accent-600 transition-colors leading-snug line-clamp-3">
+            {article.title}
+          </h3>
+        </div>
+      </Link>
+    );
+  }
 
   if (variant === 'segment') {
     return (
