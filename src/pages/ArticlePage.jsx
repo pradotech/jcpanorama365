@@ -158,8 +158,19 @@ export default function ArticlePage() {
   };
 
   return (
-    <article className="pt-1 sm:pt-2">
+    <article className="pt-2 sm:pt-3">
       <div className="max-w-5xl mx-auto px-3 sm:px-4">
+        {/* Botão Voltar para Tela Inicial */}
+        <div className="mb-3">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white hover:bg-navy-50 text-navy-700 hover:text-navy-950 text-xs sm:text-sm font-semibold border border-navy-200/80 shadow-xs transition-all duration-200 hover:shadow-sm active:scale-95 group cursor-pointer"
+          >
+            <ArrowLeft size={16} className="text-navy-500 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Voltar para tela inicial</span>
+          </Link>
+        </div>
+
         {/* Article Header Card */}
         <div className="bg-white rounded-2xl shadow-card border border-navy-100/80 p-3.5 sm:p-4 md:p-5 mb-3">
           <div className="flex items-center justify-between gap-3 mb-2">
@@ -451,6 +462,17 @@ export default function ArticlePage() {
             </div>
           </div>
         )}
+
+        {/* Botão de retorno à tela inicial ao final da leitura */}
+        <div className="flex justify-center my-8">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-white hover:bg-navy-50 text-navy-800 hover:text-navy-950 font-bold text-sm border border-navy-200 shadow-card hover:shadow-card-hover transition-all duration-200 hover:scale-[1.02] active:scale-95 group cursor-pointer"
+          >
+            <ArrowLeft size={18} className="text-navy-500 group-hover:-translate-x-1 transition-transform" />
+            <span>Voltar para tela inicial</span>
+          </Link>
+        </div>
       </div>
 
       {/* Related articles */}

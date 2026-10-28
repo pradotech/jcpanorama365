@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Clock, TrendingUp, ArrowRight } from 'lucide-react';
+import { Clock, TrendingUp } from 'lucide-react';
 import { useNews } from '../../hooks/useNews';
 import CategoryBadge from '../ui/CategoryBadge';
-import EditionCard from '../ui/EditionCard';
 import { formatTimeAgo } from '../../lib/dateUtils';
 
 export default function Sidebar({ onlyHome = false }) {
@@ -11,10 +10,7 @@ export default function Sidebar({ onlyHome = false }) {
   const latestNews = allNews.slice(0, 6);
 
   return (
-    <aside className="space-y-8">
-      {/* Edição do Dia (Ocultado temporariamente) */}
-      {/* <EditionCard /> */}
-
+    <aside className="space-y-6">
       {/* Mais Lidas */}
       <div className="bg-white rounded-2xl shadow-card overflow-hidden">
         <div className="px-5 py-4 bg-navy-950" style={{ background: 'linear-gradient(to right, #0F1A2E, #243b53)' }}>

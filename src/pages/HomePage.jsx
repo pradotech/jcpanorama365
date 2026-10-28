@@ -7,6 +7,7 @@ import NewsCard from '../components/news/NewsCard';
 import Sidebar from '../components/layout/Sidebar';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import ColumnistsSection from '../components/news/ColumnistsSection';
+import MarketOverview from '../components/market/MarketOverview';
 import { Clock } from 'lucide-react';
 
 export default function HomePage() {
@@ -75,7 +76,7 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* Seção Últimas Notícias (até 12 cards, independente de segmento) */}
+        {/* Seção Últimas Notícias com Mercado Financeiro ao lado */}
         {latestNews.length > 0 && (
           <section className="mb-12">
             <div className="flex items-center justify-between mb-5 pb-3 border-b border-navy-100">
@@ -90,10 +91,27 @@ export default function HomePage() {
                 Mais Recentes
               </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {latestNews.map(article => (
-                <NewsCard key={article.id} article={article} variant="compact" />
-              ))}
+
+            {/* Grid Principal: Notícias à esquerda + Cotações à direita (Desktop) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+              {/* Celular / Tablet: Cards no topo com abas responsivas */}
+              <div className="lg:hidden mb-4 sm:mb-6">
+                <MarketOverview />
+              </div>
+
+              {/* Coluna da Esquerda (2 colunas no desktop): Notícias Recentes */}
+              <div className="lg:col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {latestNews.map(article => (
+                    <NewsCard key={article.id} article={article} variant="compact" />
+                  ))}
+                </div>
+              </div>
+
+              {/* Coluna da Direita (Desktop): Cards de Dólar e Bolsa no topo */}
+              <div className="hidden lg:block lg:col-span-1">
+                <MarketOverview />
+              </div>
             </div>
           </section>
         )}
