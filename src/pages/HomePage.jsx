@@ -109,18 +109,23 @@ export default function HomePage() {
                     <NewsCard key={article.id} article={article} variant="compact" />
                   ))}
                 </div>
-
-                {/* No mobile: Mais Lidas e Últimas Notícias aparecem após as notícias recentes */}
-                <div className="lg:hidden mt-8">
-                  <Sidebar onlyHome={true} />
-                </div>
               </div>
             </div>
           </section>
         )}
 
-        {/* Seção Exclusiva de Colunistas */}
-        <ColumnistsSection articles={columnistArticles} />
+        {/* No Celular: Nossos Colunistas acima de Mais Lidas */}
+        <div className="lg:hidden mb-10">
+          <ColumnistsSection articles={columnistArticles} />
+          <div className="mt-8">
+            <Sidebar onlyHome={true} />
+          </div>
+        </div>
+
+        {/* No Desktop: Nossos Colunistas na largura total abaixo do grid principal */}
+        <div className="hidden lg:block">
+          <ColumnistsSection articles={columnistArticles} />
+        </div>
 
         {/* Main content (Segmentos Mais Ativos) */}
         <div className="space-y-10">
