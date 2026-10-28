@@ -92,25 +92,28 @@ export default function HomePage() {
               </span>
             </div>
 
-            {/* Grid Principal: Notícias à esquerda + Cotações à direita (Desktop) */}
+            {/* Grid Principal: Notícias à esquerda + Coluna Lateral à direita */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
-              {/* Celular / Tablet: Cards no topo com abas responsivas */}
-              <div className="lg:hidden mb-4 sm:mb-6">
+              {/* Coluna Lateral: No mobile fica no topo (order-1), no desktop fica à direita (order-2) */}
+              <div className="lg:col-span-1 order-1 lg:order-2 space-y-6">
                 <MarketOverview />
+                <div className="hidden lg:block">
+                  <Sidebar onlyHome={true} />
+                </div>
               </div>
 
-              {/* Coluna da Esquerda (2 colunas no desktop): Notícias Recentes */}
-              <div className="lg:col-span-2">
+              {/* Coluna das Notícias: No mobile fica após as cotações (order-2), no desktop fica à esquerda (order-1) */}
+              <div className="lg:col-span-2 order-2 lg:order-1">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {latestNews.map(article => (
                     <NewsCard key={article.id} article={article} variant="compact" />
                   ))}
                 </div>
-              </div>
 
-              {/* Coluna da Direita (Desktop): Cards de Dólar e Bolsa no topo */}
-              <div className="hidden lg:block lg:col-span-1">
-                <MarketOverview />
+                {/* No mobile: Mais Lidas e Últimas Notícias aparecem após as notícias recentes */}
+                <div className="lg:hidden mt-8">
+                  <Sidebar onlyHome={true} />
+                </div>
               </div>
             </div>
           </section>
@@ -119,41 +122,32 @@ export default function HomePage() {
         {/* Seção Exclusiva de Colunistas */}
         <ColumnistsSection articles={columnistArticles} />
 
-        {/* Main content (Segmentos Mais Ativos) + Sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-12">
-            {/* Principais segmentos com mais publicações */}
-            {topActiveCategories.map(catId => {
-              const cat = categories.find(c => c.id === catId);
-              if (!cat) return null;
-              return (
-                <NewsList
-                  key={cat.id}
-                  categoryId={cat.id}
-                  articles={categoryNewsMap[catId]}
-                  limit={3}
-                />
-              );
-            })}
+        {/* Main content (Segmentos Mais Ativos) */}
+        <div className="space-y-12">
+          {topActiveCategories.map(catId => {
+            const cat = categories.find(c => c.id === catId);
+            if (!cat) return null;
+            return (
+              <NewsList
+                key={cat.id}
+                categoryId={cat.id}
+                articles={categoryNewsMap[catId]}
+                limit={3}
+              />
+            );
+          })}
 
-            {/* Caso não haja nenhuma notícia publicada */}
-            {topActiveCategories.length === 0 && (
-              <div className="text-center py-16">
-                <p className="text-navy-400 text-lg">
-                  Nenhuma notícia publicada ainda.
-                </p>
-                <p className="text-navy-300 text-sm mt-2">
-                  Crie e publique notícias através do painel admin.
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="lg:col-span-1">
-            <div className="sticky top-32">
-              <Sidebar onlyHome={true} />
+          {/* Caso não haja nenhuma notícia publicada */}
+          {topActiveCategories.length === 0 && (
+            <div className="text-center py-16">
+              <p className="text-navy-400 text-lg">
+                Nenhuma notícia publicada ainda.
+              </p>
+              <p className="text-navy-300 text-sm mt-2">
+                Crie e publique notícias através do painel admin.
+              </p>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </>

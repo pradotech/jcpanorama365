@@ -1,12 +1,12 @@
 /**
  * Serviço de integração com a brapi.dev para cotações de Ações e Moedas (Dólar).
- * Regra estrita: Limite máximo de 4 chamadas por dia divididas em 4 slots fixos de 6h.
- * Bloqueado qualquer tipo de recarregamento forçado.
+ * Regra estrita: Limite máximo absoluto de 4 chamadas por dia (1 chamada a cada 6 horas).
+ * Bloqueio rígido contra qualquer repetição ou recarregamento forçado.
  */
 
 // Token da brapi.dev
 const BRAPI_TOKEN = import.meta.env.VITE_BRAPI_TOKEN || 'dmX9ygWePJ23LBb9GbC8Mq';
-const STORAGE_PREFIX = 'jc_market_slot_v3_';
+const STORAGE_PREFIX = 'jc_market_strict_v4_';
 
 // Nomes amigáveis padrão para as 4 principais ações
 const FRIENDLY_NAMES = {
@@ -65,6 +65,14 @@ const FALLBACK_DOLLAR = {
 };
 
 /**
+ * Cache Singleton em memória para compartilhar dados instantaneamente entre todos os componentes
+ */
+let memoryStocksCache = null;
+let memoryDollarCache = null;
+let inFlightStocksPromise = null;
+let inFlightDollarPromise = null;
+
+/**
  * Retorna a data no formato YYYY-MM-DD no fuso de Brasília.
  */
 function getLocalDateString(date = new Date()) {
@@ -85,9 +93,9 @@ function getLocalDateString(date = new Date()) {
 }
 
 /**
- * Retorna o identificador único do slot de 6h do dia atual (4 janelas por dia):
- * Slot 0: 00:00 até 05:59
- * Slot 1: 06:00 até 11:59
+ * Retorna o identificador do slot atual de 6 horas (4 slots por dia):
+ * Slot 0: 00:00 às 05:59
+ * Slot 1: 06:00 às 11:59
  * Slot 2: 12:00 até 17:59
  * Slot 3: 18:00 até 23:59
  */
@@ -101,7 +109,7 @@ export function getCurrentSlotId(date = new Date()) {
     });
     hour = parseInt(hourFormatter.format(date), 10);
   } catch {
-    // fallback para getHours local
+    // fallback
   }
 
   const slotIndex = Math.floor(hour / 6);
@@ -110,78 +118,87 @@ export function getCurrentSlotId(date = new Date()) {
 }
 
 /**
- * Leitura de dados do slot do localStorage
+ * Leitura de dados gravados no localStorage
  */
-function getSlotData(type, slotId) {
+function getPersistedData(type) {
   try {
-    const key = `${STORAGE_PREFIX}${type}_${slotId}`;
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(`${STORAGE_PREFIX}${type}`);
     if (raw) {
       return JSON.parse(raw);
     }
   } catch {
-    // localStorage bloqueado ou parse error
+    // localStorage inacessível
   }
   return null;
 }
 
 /**
- * Busca o dado mais recente previamente gravado em qualquer slot anterior
+ * Grava dados persistentes com a trava do slot
  */
-function getLatestSavedData(type) {
-  try {
-    const latestRaw = localStorage.getItem(`${STORAGE_PREFIX}${type}_latest`);
-    if (latestRaw) {
-      return JSON.parse(latestRaw);
-    }
-  } catch {
-    // ignora
-  }
-  return null;
-}
-
-/**
- * Gravação de dados no slot atual e como último registro global
- */
-function saveSlotData(type, slotId, data) {
+function persistData(type, slotId, data) {
   try {
     const payload = {
-      data,
       slotId,
+      data,
       timestamp: Date.now(),
     };
-    localStorage.setItem(`${STORAGE_PREFIX}${type}_${slotId}`, JSON.stringify(payload));
-    localStorage.setItem(`${STORAGE_PREFIX}${type}_latest`, JSON.stringify(payload));
+    localStorage.setItem(`${STORAGE_PREFIX}${type}`, JSON.stringify(payload));
+    // Marca a trava definitiva para este slot
+    localStorage.setItem(`${STORAGE_PREFIX}lock_${type}_${slotId}`, '1');
   } catch {
     // localStorage cheio
   }
 }
 
-// Bloqueio em memória para evitar chamadas simultâneas
-let inFlightStocksPromise = null;
-let inFlightDollarPromise = null;
+/**
+ * Verifica se o slot atual já foi consultado (mesmo que tenha falhado ou retornado fallback)
+ */
+function isSlotLocked(type, slotId) {
+  try {
+    return Boolean(localStorage.getItem(`${STORAGE_PREFIX}lock_${type}_${slotId}`));
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Busca cotações das ações da B3.
- * SÓ CHAMA A API SE O SLOT ATUAL AINDA NÃO TIVER SIDO COLETADO (máx. 4x/dia).
- * Forçar chamada externa está terminantemente desabilitado.
+ * SÓ CHAMA A API 1 ÚNICA VEZ NO SLOT ATUAL DE 6 HORAS.
  */
 export async function fetchTopStocks(symbols = ['PETR4', 'VALE3', 'ITUB4', 'BBDC4']) {
   const currentSlotId = getCurrentSlotId();
 
-  // 1. Se já coletou no slot atual, NUNCA chama a API externa
-  const existingSlot = getSlotData('stocks', currentSlotId);
-  if (existingSlot && existingSlot.data) {
+  // 1. Se já temos na memória para este mesmo slot, retorna na hora
+  if (memoryStocksCache && memoryStocksCache.slotId === currentSlotId) {
     return {
-      items: existingSlot.data,
-      lastUpdated: new Date(existingSlot.timestamp),
+      items: memoryStocksCache.data,
+      lastUpdated: new Date(memoryStocksCache.timestamp),
     };
   }
 
-  // 2. Se já existe uma requisição em andamento para este slot, reaproveita
+  // 2. Se o slot atual já foi consultado ou trancado no localStorage, usa o dado salvo e NUNCA faz fetch
+  const persisted = getPersistedData('stocks');
+  const locked = isSlotLocked('stocks', currentSlotId);
+
+  if (locked || (persisted && persisted.slotId === currentSlotId)) {
+    const items = persisted?.data || FALLBACK_STOCKS;
+    const timestamp = persisted?.timestamp || Date.now();
+    memoryStocksCache = { slotId: currentSlotId, data: items, timestamp };
+    return {
+      items,
+      lastUpdated: new Date(timestamp),
+    };
+  }
+
+  // 3. Se já existe uma requisição em andamento, reaproveita a mesma Promise
   if (inFlightStocksPromise) {
     return inFlightStocksPromise;
   }
+
+  // 4. Tranca imediatamente o slot para impedir qualquer disparo duplicado
+  try {
+    localStorage.setItem(`${STORAGE_PREFIX}lock_stocks_${currentSlotId}`, '1');
+  } catch {}
 
   inFlightStocksPromise = (async () => {
     try {
@@ -197,14 +214,14 @@ export async function fetchTopStocks(symbols = ['PETR4', 'VALE3', 'ITUB4', 'BBDC
       });
 
       if (!response.ok) {
-        throw new Error(`Erro brapi.dev status ${response.status}`);
+        throw new Error(`Erro status ${response.status}`);
       }
 
       const json = await response.json();
       const rawResults = json.results || [];
 
       if (!Array.isArray(rawResults) || rawResults.length === 0) {
-        throw new Error('Nenhum dado retornado para as ações');
+        throw new Error('Retorno vazio');
       }
 
       const formatted = rawResults.map((item) => {
@@ -231,19 +248,24 @@ export async function fetchTopStocks(symbols = ['PETR4', 'VALE3', 'ITUB4', 'BBDC
         };
       });
 
-      // Grava no slot atual (assegura que não será chamado de novo neste slot)
-      saveSlotData('stocks', currentSlotId, formatted);
+      // Grava no cache e persiste
+      persistData('stocks', currentSlotId, formatted);
+      memoryStocksCache = { slotId: currentSlotId, data: formatted, timestamp: Date.now() };
 
       return {
         items: formatted,
         lastUpdated: new Date(),
       };
     } catch (error) {
-      console.warn('Aviso: falha na coleta das ações da brapi.dev, usando dados seguros:', error.message);
-      const fallback = getLatestSavedData('stocks');
+      console.warn('Aviso: consulta de ações da brapi.dev falhou, trancando slot e usando contingência:', error.message);
+      // Salva os dados de contingência para este slot para NUNCA mais tentar no mesmo ciclo
+      const fallbackItems = persisted?.data || FALLBACK_STOCKS;
+      persistData('stocks', currentSlotId, fallbackItems);
+      memoryStocksCache = { slotId: currentSlotId, data: fallbackItems, timestamp: Date.now() };
+
       return {
-        items: fallback?.data || FALLBACK_STOCKS,
-        lastUpdated: fallback?.timestamp ? new Date(fallback.timestamp) : new Date(),
+        items: fallbackItems,
+        lastUpdated: new Date(),
       };
     } finally {
       inFlightStocksPromise = null;
@@ -255,25 +277,42 @@ export async function fetchTopStocks(symbols = ['PETR4', 'VALE3', 'ITUB4', 'BBDC
 
 /**
  * Busca cotação e oscilação do Dólar Comercial.
- * SÓ CHAMA A API SE O SLOT ATUAL AINDA NÃO TIVER SIDO COLETADO (máx. 4x/dia).
- * Forçar chamada externa está terminantemente desabilitado.
+ * SÓ CHAMA A API 1 ÚNICA VEZ NO SLOT ATUAL DE 6 HORAS.
  */
 export async function fetchDollarRate() {
   const currentSlotId = getCurrentSlotId();
 
-  // 1. Se já coletou no slot atual, NUNCA chama a API externa
-  const existingSlot = getSlotData('dollar', currentSlotId);
-  if (existingSlot && existingSlot.data) {
+  // 1. Se já temos na memória para este mesmo slot, retorna na hora
+  if (memoryDollarCache && memoryDollarCache.slotId === currentSlotId) {
     return {
-      rate: existingSlot.data,
-      lastUpdated: new Date(existingSlot.timestamp),
+      rate: memoryDollarCache.data,
+      lastUpdated: new Date(memoryDollarCache.timestamp),
     };
   }
 
-  // 2. Se já existe uma requisição em andamento para este slot, reaproveita
+  // 2. Se o slot atual já foi consultado ou trancado no localStorage, usa o dado salvo e NUNCA faz fetch
+  const persisted = getPersistedData('dollar');
+  const locked = isSlotLocked('dollar', currentSlotId);
+
+  if (locked || (persisted && persisted.slotId === currentSlotId)) {
+    const rate = persisted?.data || FALLBACK_DOLLAR;
+    const timestamp = persisted?.timestamp || Date.now();
+    memoryDollarCache = { slotId: currentSlotId, data: rate, timestamp };
+    return {
+      rate,
+      lastUpdated: new Date(timestamp),
+    };
+  }
+
+  // 3. Se já existe uma requisição em andamento, reaproveita a mesma Promise
   if (inFlightDollarPromise) {
     return inFlightDollarPromise;
   }
+
+  // 4. Tranca imediatamente o slot para impedir qualquer disparo duplicado
+  try {
+    localStorage.setItem(`${STORAGE_PREFIX}lock_dollar_${currentSlotId}`, '1');
+  } catch {}
 
   inFlightDollarPromise = (async () => {
     try {
@@ -288,7 +327,7 @@ export async function fetchDollarRate() {
       });
 
       if (!response.ok) {
-        throw new Error(`Erro brapi.dev moedas status ${response.status}`);
+        throw new Error(`Erro status ${response.status}`);
       }
 
       const json = await response.json();
@@ -296,7 +335,7 @@ export async function fetchDollarRate() {
       const item = list[0];
 
       if (!item) {
-        throw new Error('Nenhum dado retornado para USD-BRL');
+        throw new Error('Retorno vazio');
       }
 
       const bidPrice = parseFloat(item.bidPrice) || 0;
@@ -323,19 +362,24 @@ export async function fetchDollarRate() {
         updatedAt: item.updatedAtDate || (item.updatedAtTimestamp ? new Date(item.updatedAtTimestamp * 1000).toISOString() : new Date().toISOString()),
       };
 
-      // Grava no slot atual (assegura que não será chamado de novo neste slot)
-      saveSlotData('dollar', currentSlotId, formatted);
+      // Grava no cache e persiste
+      persistData('dollar', currentSlotId, formatted);
+      memoryDollarCache = { slotId: currentSlotId, data: formatted, timestamp: Date.now() };
 
       return {
         rate: formatted,
         lastUpdated: new Date(),
       };
     } catch (error) {
-      console.warn('Aviso: falha na coleta do dólar da brapi.dev, usando dados seguros:', error.message);
-      const fallback = getLatestSavedData('dollar');
+      console.warn('Aviso: consulta de dólar da brapi.dev falhou, trancando slot e usando contingência:', error.message);
+      // Salva os dados de contingência para este slot para NUNCA mais tentar no mesmo ciclo
+      const fallbackRate = persisted?.data || FALLBACK_DOLLAR;
+      persistData('dollar', currentSlotId, fallbackRate);
+      memoryDollarCache = { slotId: currentSlotId, data: fallbackRate, timestamp: Date.now() };
+
       return {
-        rate: fallback?.data || FALLBACK_DOLLAR,
-        lastUpdated: fallback?.timestamp ? new Date(fallback.timestamp) : new Date(),
+        rate: fallbackRate,
+        lastUpdated: new Date(),
       };
     } finally {
       inFlightDollarPromise = null;
