@@ -132,7 +132,7 @@ export default function HomePage() {
                 key={cat.id}
                 categoryId={cat.id}
                 articles={categoryNewsMap[catId]}
-                limit={3}
+                limit={4}
                 cardVariant="compact"
               />
             );

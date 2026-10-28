@@ -6,7 +6,7 @@ import { getCategoryById } from '../../data/categories';
 export default function NewsList({
   categoryId,
   articles,
-  limit = 3,
+  limit = 4,
   showHeader = true,
   cardVariant = 'compact',
 }) {
@@ -18,7 +18,7 @@ export default function NewsList({
   return (
     <section>
       {showHeader && category && (
-        <div className="flex items-center justify-between mb-3 pb-2 border-b border-navy-100/70">
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-navy-100/70">
           <div className="flex items-center gap-2.5">
             <span
               className="w-1.5 h-6 rounded-full"
@@ -39,9 +39,9 @@ export default function NewsList({
         </div>
       )}
 
-      {/* Versão Celular: estilo feed editorial compacto (foto à esquerda + categoria em destaque + título) */}
+      {/* Versão Celular: 3 notícias no estilo feed editorial compacto (foto à esquerda + categoria em destaque + título) */}
       <div className="flex flex-col sm:hidden divide-y divide-navy-100/80">
-        {displayArticles.map(article => (
+        {displayArticles.slice(0, 3).map(article => (
           <NewsCard
             key={article.id}
             article={article}
@@ -50,8 +50,8 @@ export default function NewsList({
         ))}
       </div>
 
-      {/* Versão Tablet/Desktop: grid de 3 cards alinhados */}
-      <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {/* Versão Tablet/Desktop: exatamente os 4 cards na linha */}
+      <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {displayArticles.map(article => (
           <NewsCard
             key={article.id}
