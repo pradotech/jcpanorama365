@@ -8,6 +8,44 @@ import { formatTimeAgo } from '../../lib/dateUtils';
 export default function NewsCard({ article, variant = 'default' }) {
   const images = getArticleImages(article);
 
+  if (variant === 'segment') {
+    return (
+      <Link
+        to={`/noticia/${article.slug}`}
+        className="group flex gap-2.5 sm:gap-3 bg-white p-2.5 rounded-xl border border-navy-100/90 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-navy-200 transition-all duration-200 hover:-translate-y-0.5 items-stretch"
+      >
+        {/* Thumbnail compacta à esquerda */}
+        <div className="w-20 sm:w-22 h-20 sm:h-22 rounded-lg overflow-hidden shrink-0 relative bg-navy-100/60">
+          <ImageCarousel
+            images={images}
+            alt={article.title}
+            aspectRatio="w-full h-full"
+            className="w-full h-full"
+            imageClassName="group-hover:scale-105 transition-transform duration-300 w-full h-full object-cover"
+            showDots={false}
+          />
+        </div>
+
+        {/* Informações compactas à direita */}
+        <div className="flex flex-col justify-between min-w-0 flex-1 py-0.5">
+          <h3 className="text-xs sm:text-[13px] font-bold text-navy-950 group-hover:text-accent-600 transition-colors leading-snug line-clamp-2 mb-1">
+            {article.title}
+          </h3>
+
+          <div className="mt-auto pt-1 flex items-center justify-between text-[10px] sm:text-[11px] text-navy-400">
+            <span className="truncate max-w-[85px] sm:max-w-[100px] font-medium text-navy-500">
+              {article.columnist_name || article.author || 'Redação'}
+            </span>
+            <span className="flex items-center gap-1 shrink-0">
+              <Clock size={11} />
+              {formatTimeAgo(article.published_at)}
+            </span>
+          </div>
+        </div>
+      </Link>
+    );
+  }
+
   if (variant === 'compact') {
     return (
       <Link

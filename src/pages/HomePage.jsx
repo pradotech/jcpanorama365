@@ -123,7 +123,7 @@ export default function HomePage() {
         <ColumnistsSection articles={columnistArticles} />
 
         {/* Main content (Segmentos Mais Ativos) */}
-        <div className="space-y-12">
+        <div className="space-y-10">
           {topActiveCategories.map(catId => {
             const cat = categories.find(c => c.id === catId);
             if (!cat) return null;
@@ -132,7 +132,8 @@ export default function HomePage() {
                 key={cat.id}
                 categoryId={cat.id}
                 articles={categoryNewsMap[catId]}
-                limit={3}
+                limit={4}
+                cardVariant="compact"
               />
             );
           })}
