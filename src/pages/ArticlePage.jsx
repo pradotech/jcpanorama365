@@ -126,15 +126,14 @@ export default function ArticlePage() {
   const handleShare = async () => {
     if (!article) return;
     const url = window.location.href;
-    const shareText = `📰 *${article.title}*\n\n${article.subtitle ? `${article.subtitle}\n\n` : ''}Confira a matéria completa no JC Panorama 365:`;
+    const shareBody = `📰 *${article.title}*${article.subtitle ? `\n\n${article.subtitle}` : ''}\n\nConfira a matéria completa:`;
 
-    // 1. Suporte nativo do celular (iOS / Android): abre Facebook, Instagram, WhatsApp, etc.
+    // 1. Suporte nativo do celular (iOS / Android): abre WhatsApp, Facebook, etc.
     if (navigator.share) {
       try {
         await navigator.share({
           title: article.title,
-          text: shareText,
-          url: url,
+          text: `${url}\n\n${shareBody}`,
         });
         return;
       } catch (err) {
@@ -144,7 +143,7 @@ export default function ArticlePage() {
     }
 
     // 2. Fallback para navegadores Desktop ou sem suporte a Web Share: copia para a área de transferência
-    const fullTextToCopy = `${shareText}\n${url}`;
+    const fullTextToCopy = `${url}\n\n${shareBody}`;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(fullTextToCopy);

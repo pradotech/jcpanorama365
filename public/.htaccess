@@ -7,12 +7,20 @@
   RewriteCond %{HTTP:X-Forwarded-Proto} !https
   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-  # 2. Se a requisição for para um arquivo ou diretório físico real, serve diretamente
+  # 2. Sitemap Dinâmico (sitemap.xml gerado via sitemap.php)
+  RewriteRule ^sitemap\.xml$ sitemap.php [L]
+
+  # 3. Interceptar Robôs e Crawlers de Redes Sociais (WhatsApp, Facebook, Twitter, Telegram, LinkedIn, etc.)
+  # Se for um bot acessando a rota de uma notícia (/noticia/:slug), encaminha para o og.php
+  RewriteCond %{HTTP_USER_AGENT} (facebookexternalhit|WhatsApp|Facebot|Twitterbot|TelegramBot|LinkedInBot|Pinterest|Slackbot|Discordbot|Googlebot|bingbot) [NC]
+  RewriteRule ^noticia/(.*)$ og.php?slug=$1 [L,QSA]
+
+  # 4. Se a requisição for para um arquivo ou diretório físico real, serve diretamente
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # 3. Fallback de Single Page Application (React Router): tudo o mais vai para index.html
+  # 5. Fallback de Single Page Application (React Router): usuários normais vão para index.html
   RewriteRule ^ index.html [L]
 </IfModule>
 
