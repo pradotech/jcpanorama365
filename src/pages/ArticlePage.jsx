@@ -46,6 +46,83 @@ export default function ArticlePage() {
     }
   }, [article?.id]);
 
+  // SEO & Metadados Dinâmicos (Title, Open Graph, Schema.org NewsArticle)
+  useEffect(() => {
+    if (!article) return;
+
+    const previousTitle = document.title;
+    document.title = `${article.title} | JC Panorama 365`;
+
+    const setMeta = (attribute, name, content) => {
+      if (!content) return;
+      let el = document.querySelector(`meta[${attribute}="${name}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attribute, name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+
+    const description = article.subtitle || (article.content ? article.content.replace(/<[^>]*>/g, '').substring(0, 160) : 'Notícias de Jundiaí e Região.');
+    const mainImage = images && images.length > 0 ? images[0] : 'https://jcpanorama365.com.br/logo.png';
+    const pageUrl = window.location.href;
+
+    setMeta('name', 'description', description);
+    setMeta('property', 'og:title', article.title);
+    setMeta('property', 'og:description', description);
+    setMeta('property', 'og:image', mainImage);
+    setMeta('property', 'og:url', pageUrl);
+    setMeta('property', 'og:type', 'article');
+    setMeta('name', 'twitter:card', 'summary_large_image');
+    setMeta('name', 'twitter:title', article.title);
+    setMeta('name', 'twitter:description', description);
+    setMeta('name', 'twitter:image', mainImage);
+
+    // Schema.org NewsArticle JSON-LD (Google News & Discover)
+    const jsonLdData = {
+      '@context': 'https://schema.org',
+      '@type': 'NewsArticle',
+      'headline': article.title,
+      'description': description,
+      'image': [mainImage],
+      'datePublished': article.published_at || article.created_at,
+      'dateModified': article.updated_at || article.published_at || article.created_at,
+      'author': {
+        '@type': 'Person',
+        'name': article.columnist_name || article.author || 'Redação JC Panorama 365',
+      },
+      'publisher': {
+        '@type': 'NewsMediaOrganization',
+        'name': 'JC Panorama 365',
+        'url': 'https://jcpanorama365.com.br',
+        'logo': {
+          '@type': 'ImageObject',
+          'url': 'https://jcpanorama365.com.br/logo.png',
+        },
+      },
+      'mainEntityOfPage': {
+        '@type': 'WebPage',
+        '@id': pageUrl,
+      },
+    };
+
+    let scriptTag = document.getElementById('news-article-schema');
+    if (!scriptTag) {
+      scriptTag = document.createElement('script');
+      scriptTag.id = 'news-article-schema';
+      scriptTag.type = 'application/ld+json';
+      document.head.appendChild(scriptTag);
+    }
+    scriptTag.textContent = JSON.stringify(jsonLdData);
+
+    return () => {
+      document.title = previousTitle;
+      const el = document.getElementById('news-article-schema');
+      if (el) el.remove();
+    };
+  }, [article, images]);
+
   const handleShare = async () => {
     if (!article) return;
     const url = window.location.href;

@@ -46,7 +46,7 @@ function formatDateTime(date) {
 export default function DollarCard({ dollar, loading = false, lastUpdated }) {
   const isPositive = dollar?.changePercent > 0;
   const isNegative = dollar?.changePercent < 0;
-  const updateDate = lastUpdated || dollar?.updatedAt;
+  const updateDate = dollar?.updatedAt || lastUpdated;
 
   return (
     <div className="bg-white rounded-2xl shadow-card border border-navy-100/70 overflow-hidden transition-all hover:shadow-card-hover w-full">
@@ -135,7 +135,7 @@ export default function DollarCard({ dollar, loading = false, lastUpdated }) {
 
             {/* Rodapé sutil */}
             <div className="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 border-t border-navy-100/50 flex flex-wrap items-center justify-between gap-1 text-[9px] sm:text-[10px] text-navy-400">
-              <span className="truncate">PTAX / Banco Central</span>
+              <span className="truncate">Investing.com / DolarApi</span>
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 <span className="truncate">{updateDate ? `Atualizado em ${formatDateTime(updateDate)}` : 'Atualizado'}</span>

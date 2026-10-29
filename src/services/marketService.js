@@ -176,11 +176,13 @@ export async function fetchTopStocks(symbols = ['PETR4', 'VALE3', 'ITUB4', 'BBDC
     };
   }
 
-  // 2. Se o slot atual já foi consultado ou trancado no localStorage, usa o dado salvo e NUNCA faz fetch
+  // 2. Se o slot atual já foi consultado ou trancado no localStorage
   const persisted = getPersistedData('stocks');
   const locked = isSlotLocked('stocks', currentSlotId);
+  const isOldDummyFallback = persisted?.data?.[0]?.price === 36.85 && persisted?.data?.[1]?.price === 61.20;
 
-  if (locked || (persisted && persisted.slotId === currentSlotId)) {
+  // Se tem dados reais gravados para este slot, reaproveita sem fazer nova requisição
+  if (!isOldDummyFallback && (locked || (persisted && persisted.slotId === currentSlotId))) {
     const items = persisted?.data || FALLBACK_STOCKS;
     const timestamp = persisted?.timestamp || Date.now();
     memoryStocksCache = { slotId: currentSlotId, data: items, timestamp };
@@ -188,6 +190,15 @@ export async function fetchTopStocks(symbols = ['PETR4', 'VALE3', 'ITUB4', 'BBDC
       items,
       lastUpdated: new Date(timestamp),
     };
+  }
+
+  // Se estava travado com o fallback de erro antigo do dia 27, limpa para atualizar com dados reais
+  if (isOldDummyFallback) {
+    try {
+      localStorage.removeItem(`${STORAGE_PREFIX}lock_stocks_${currentSlotId}`);
+      localStorage.removeItem(`${STORAGE_PREFIX}stocks`);
+      memoryStocksCache = null;
+    } catch {}
   }
 
   // 3. Se já existe uma requisição em andamento, reaproveita a mesma Promise
@@ -205,13 +216,8 @@ export async function fetchTopStocks(symbols = ['PETR4', 'VALE3', 'ITUB4', 'BBDC
       const tickers = symbols.join(',');
       const url = `https://brapi.dev/api/quote/${encodeURIComponent(tickers)}?token=${encodeURIComponent(BRAPI_TOKEN)}`;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${BRAPI_TOKEN}`,
-          Accept: 'application/json',
-        },
-      });
+      // Requisição GET simples sem headers customizados para evitar preflight OPTIONS de CORS no browser
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`Erro status ${response.status}`);
@@ -265,7 +271,7 @@ export async function fetchTopStocks(symbols = ['PETR4', 'VALE3', 'ITUB4', 'BBDC
 
       return {
         items: fallbackItems,
-        lastUpdated: new Date(),
+        lastUpdated: new Date(persisted?.timestamp || Date.now()),
       };
     } finally {
       inFlightStocksPromise = null;
@@ -276,32 +282,92 @@ export async function fetchTopStocks(symbols = ['PETR4', 'VALE3', 'ITUB4', 'BBDC
 }
 
 /**
+ * Busca cotação oficial do Dólar Comercial (USD-BRL) via DolarApi.com (Brasil).
+ * Endpoint: https://br.dolarapi.com/v1/cotacoes/usd
+ * Fonte de dados: Investing.com
+ */
+async function fetchDollarFromDolarApi() {
+  try {
+    const response = await fetch('https://br.dolarapi.com/v1/cotacoes/usd');
+    if (!response.ok) {
+      throw new Error(`DolarApi status: ${response.status}`);
+    }
+
+    const raw = await response.json();
+    const data = Array.isArray(raw) ? raw[0] : raw;
+
+    if (!data) {
+      throw new Error('Retorno vazio da DolarApi');
+    }
+
+    const bidPrice = parseFloat(data.compra || data.venda || 0);
+    const askPrice = parseFloat(data.venda || data.compra || bidPrice);
+    const fechoAnterior = parseFloat(data.fechoAnterior || 0);
+
+    let variation = 0;
+    let changePercent = 0;
+
+    if (fechoAnterior > 0) {
+      variation = Number((bidPrice - fechoAnterior).toFixed(4));
+      changePercent = Number(((variation / fechoAnterior) * 100).toFixed(2));
+    }
+
+    const high = fechoAnterior > 0 ? Number(Math.max(bidPrice, fechoAnterior).toFixed(4)) : Number((bidPrice * 1.004).toFixed(4));
+    const low = fechoAnterior > 0 ? Number(Math.min(bidPrice, fechoAnterior).toFixed(4)) : Number((bidPrice * 0.996).toFixed(4));
+
+    return {
+      pair: 'USD-BRL',
+      name: 'Dólar Comercial',
+      bidPrice,
+      askPrice,
+      high,
+      low,
+      variation,
+      changePercent,
+      updatedAt: data.dataAtualizacao || new Date().toISOString(),
+    };
+  } catch (error) {
+    console.warn('Aviso: consulta à DolarApi.com falhou:', error?.message);
+    return null;
+  }
+}
+
+/**
  * Busca cotação e oscilação do Dólar Comercial.
  * SÓ CHAMA A API 1 ÚNICA VEZ NO SLOT ATUAL DE 6 HORAS.
  */
 export async function fetchDollarRate() {
   const currentSlotId = getCurrentSlotId();
 
-  // 1. Se já temos na memória para este mesmo slot, retorna na hora
+  // 1. Se já temos na memória para este mesmo slot (e não é o fallback estático antigo 5.682)
   if (memoryDollarCache && memoryDollarCache.slotId === currentSlotId) {
+    if (memoryDollarCache.data?.bidPrice !== 5.682) {
+      return {
+        rate: memoryDollarCache.data,
+        lastUpdated: new Date(memoryDollarCache.timestamp),
+      };
+    }
+  }
+
+  // 2. Se o slot atual já foi consultado e salvo no localStorage
+  const persisted = getPersistedData('dollar');
+  const isOldDummyFallback = persisted?.data?.bidPrice === 5.682 && persisted?.data?.changePercent === 0.37;
+
+  // Se tem dados reais gravados para este slot, reaproveita sem fazer nova requisição
+  if (persisted && persisted.slotId === currentSlotId && !isOldDummyFallback) {
+    memoryDollarCache = { slotId: currentSlotId, data: persisted.data, timestamp: persisted.timestamp };
     return {
-      rate: memoryDollarCache.data,
-      lastUpdated: new Date(memoryDollarCache.timestamp),
+      rate: persisted.data,
+      lastUpdated: new Date(persisted.timestamp),
     };
   }
 
-  // 2. Se o slot atual já foi consultado ou trancado no localStorage, usa o dado salvo e NUNCA faz fetch
-  const persisted = getPersistedData('dollar');
-  const locked = isSlotLocked('dollar', currentSlotId);
-
-  if (locked || (persisted && persisted.slotId === currentSlotId)) {
-    const rate = persisted?.data || FALLBACK_DOLLAR;
-    const timestamp = persisted?.timestamp || Date.now();
-    memoryDollarCache = { slotId: currentSlotId, data: rate, timestamp };
-    return {
-      rate,
-      lastUpdated: new Date(timestamp),
-    };
+  // Se estava travado com o fallback estático de erro antigo (5.682), limpa a trava para permitir carregar da DolarApi
+  if (isOldDummyFallback) {
+    try {
+      localStorage.removeItem(`${STORAGE_PREFIX}lock_dollar_${currentSlotId}`);
+      localStorage.removeItem(`${STORAGE_PREFIX}dollar`);
+    } catch {}
   }
 
   // 3. Se já existe uma requisição em andamento, reaproveita a mesma Promise
@@ -309,77 +375,34 @@ export async function fetchDollarRate() {
     return inFlightDollarPromise;
   }
 
-  // 4. Tranca imediatamente o slot para impedir qualquer disparo duplicado
-  try {
-    localStorage.setItem(`${STORAGE_PREFIX}lock_dollar_${currentSlotId}`, '1');
-  } catch {}
-
   inFlightDollarPromise = (async () => {
     try {
-      const url = `https://brapi.dev/api/v2/currency?currency=USD-BRL&token=${encodeURIComponent(BRAPI_TOKEN)}`;
+      // 1. Fonte Primária Oficial: DolarApi.com (Brasil)
+      let formattedRate = await fetchDollarFromDolarApi();
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${BRAPI_TOKEN}`,
-          Accept: 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erro status ${response.status}`);
+      // 2. Fallback final apenas se não houver conexão de rede
+      if (!formattedRate) {
+        formattedRate = persisted?.data || FALLBACK_DOLLAR;
       }
 
-      const json = await response.json();
-      const list = json.currency || [];
-      const item = list[0];
-
-      if (!item) {
-        throw new Error('Retorno vazio');
+      // Se obtivemos dados reais, persiste e tranca para o slot atual (respeitando as 4 chamadas/dia)
+      if (formattedRate.bidPrice !== 5.682) {
+        persistData('dollar', currentSlotId, formattedRate);
       }
 
-      const bidPrice = parseFloat(item.bidPrice) || 0;
-      const askPrice = parseFloat(item.askPrice) || bidPrice;
-      const high = parseFloat(item.high) || bidPrice;
-      const low = parseFloat(item.low) || bidPrice;
-      const variation = parseFloat(item.bidVariation) || 0;
-
-      let changePercent = parseFloat(item.percentageChange);
-      if (isNaN(changePercent)) {
-        const prevPrice = bidPrice - variation;
-        changePercent = prevPrice > 0 ? (variation / prevPrice) * 100 : 0;
-      }
-
-      const formatted = {
-        pair: 'USD-BRL',
-        name: 'Dólar Comercial',
-        bidPrice,
-        askPrice,
-        high,
-        low,
-        variation,
-        changePercent,
-        updatedAt: item.updatedAtDate || (item.updatedAtTimestamp ? new Date(item.updatedAtTimestamp * 1000).toISOString() : new Date().toISOString()),
-      };
-
-      // Grava no cache e persiste
-      persistData('dollar', currentSlotId, formatted);
-      memoryDollarCache = { slotId: currentSlotId, data: formatted, timestamp: Date.now() };
+      const now = Date.now();
+      memoryDollarCache = { slotId: currentSlotId, data: formattedRate, timestamp: now };
 
       return {
-        rate: formatted,
-        lastUpdated: new Date(),
+        rate: formattedRate,
+        lastUpdated: new Date(formattedRate.updatedAt || now),
       };
     } catch (error) {
-      console.warn('Aviso: consulta de dólar da brapi.dev falhou, trancando slot e usando contingência:', error.message);
-      // Salva os dados de contingência para este slot para NUNCA mais tentar no mesmo ciclo
+      console.warn('Aviso: falha geral ao buscar cotação de dólar:', error);
       const fallbackRate = persisted?.data || FALLBACK_DOLLAR;
-      persistData('dollar', currentSlotId, fallbackRate);
-      memoryDollarCache = { slotId: currentSlotId, data: fallbackRate, timestamp: Date.now() };
-
       return {
         rate: fallbackRate,
-        lastUpdated: new Date(),
+        lastUpdated: new Date(persisted?.timestamp || Date.now()),
       };
     } finally {
       inFlightDollarPromise = null;

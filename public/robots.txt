@@ -1,0 +1,7 @@
+# robots.txt para JC Panorama 365
+User-agent: *
+Allow: /
+
+# Sitemap dinâmico oficial
+Sitemap: https://jcpanorama365.com.br/sitemap.xml
+

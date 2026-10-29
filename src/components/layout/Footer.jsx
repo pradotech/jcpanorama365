@@ -64,7 +64,8 @@ export default function Footer() {
               Institucional
             </h3>
             <ul className="space-y-2.5">
-              {['Sobre Nós', 'Equipe', 'Política de Privacidade', 'Termos de Uso', 'Anuncie Conosco', 'Trabalhe Conosco'].map(item => (
+              {/* 'Sobre Nós' comentado a pedido */}
+              {[/* 'Sobre Nós', */ 'Equipe', 'Política de Privacidade', 'Termos de Uso', 'Anuncie Conosco', 'Trabalhe Conosco'].map(item => (
                 <li key={item}>
                   <a
                     href="#"

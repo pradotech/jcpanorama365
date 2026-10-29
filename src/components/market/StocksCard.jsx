@@ -35,7 +35,7 @@ function formatDateTime(date) {
 }
 
 export default function StocksCard({ stocks = [], loading = false, lastUpdated }) {
-  const updateDate = lastUpdated || stocks[0]?.updatedAt;
+  const updateDate = stocks[0]?.updatedAt || lastUpdated;
 
   return (
     <div className="bg-white rounded-2xl shadow-card border border-navy-100/70 overflow-hidden transition-all hover:shadow-card-hover w-full">
