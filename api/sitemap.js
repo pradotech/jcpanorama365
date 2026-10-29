@@ -4,9 +4,12 @@
  * Gera sitemap.xml atualizado em tempo real a partir das matérias publicadas no Supabase.
  */
 
+const DEFAULT_SUPABASE_URL = 'https://toqinygmtdlsoeocftor.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvcWlueWdtdGRsc29lb2NmdG9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzMTE3NDksImV4cCI6MjEwMTg4Nzc0OX0.9X9icw9VtUead_w3z-EDYTL9h20r_1t1JPXuVRZ94nU';
+
 export default async function handler(req, res) {
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY;
 
   let articles = [];
 
@@ -63,4 +66,3 @@ ${urlsXml}
   res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=3600');
   return res.status(200).send(xml);
 }
-

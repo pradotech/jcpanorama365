@@ -6,6 +6,9 @@
  * completo com título, subtítulo e imagem da matéria direto do Supabase.
  */
 
+const DEFAULT_SUPABASE_URL = 'https://toqinygmtdlsoeocftor.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRvcWlueWdtdGRsc29lb2NmdG9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzMTE3NDksImV4cCI6MjEwMTg4Nzc0OX0.9X9icw9VtUead_w3z-EDYTL9h20r_1t1JPXuVRZ94nU';
+
 export default async function handler(req, res) {
   const { slug } = req.query;
 
@@ -13,14 +16,14 @@ export default async function handler(req, res) {
     return res.redirect(302, '/');
   }
 
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY;
 
   let article = null;
 
   if (supabaseUrl && supabaseKey) {
     try {
-      const cleanSlug = encodeURIComponent(String(slug).replace(/^\//, ''));
+      const cleanSlug = encodeURIComponent(String(slug).replace(/^\//, '').trim());
       const endpoint = `${supabaseUrl}/rest/v1/news?slug=eq.${cleanSlug}&select=*`;
       const response = await fetch(endpoint, {
         headers: {
@@ -48,12 +51,23 @@ export default async function handler(req, res) {
   const title = article.title ? `${article.title} | JC Panorama 365` : 'JC Panorama 365';
   const description = article.subtitle || (article.content ? article.content.replace(/<[^>]*>/g, '').substring(0, 160) : 'Notícias de Jundiaí e Região em tempo real.');
 
-  // Extração de imagem principal
-  let imageUrl = `${siteUrl}/logo.png`;
+  // Extração de imagem principal com garantia de URL absoluta com https://
+  let rawImage = '';
   if (Array.isArray(article.images) && article.images.length > 0 && article.images[0]) {
-    imageUrl = article.images[0];
+    rawImage = article.images[0];
   } else if (article.image_url) {
-    imageUrl = article.image_url;
+    rawImage = article.image_url;
+  }
+
+  let imageUrl = `${siteUrl}/logo-full.jpg`;
+  if (rawImage) {
+    if (rawImage.startsWith('http://') || rawImage.startsWith('https://')) {
+      imageUrl = rawImage;
+    } else if (rawImage.startsWith('/')) {
+      imageUrl = `${siteUrl}${rawImage}`;
+    } else {
+      imageUrl = `${siteUrl}/${rawImage}`;
+    }
   }
 
   const pageUrl = `${siteUrl}/noticia/${encodeURIComponent(article.slug)}`;
@@ -79,7 +93,7 @@ export default async function handler(req, res) {
       'url': siteUrl,
       'logo': {
         '@type': 'ImageObject',
-        'url': `${siteUrl}/logo.png`,
+        'url': `${siteUrl}/logo-full.jpg`,
       },
     },
     'mainEntityOfPage': {
@@ -129,7 +143,7 @@ export default async function handler(req, res) {
   </script>
 </head>
 <body style="font-family: system-ui, -apple-system, sans-serif; padding: 40px; text-align: center; color: #0F1A2E; background: #f8fafc;">
-  <p style="font-size: 14px; color: #64748b;">Carregando a matéria no JC Panorama 365...</p>
+  <p style="font-size: 14px; color: #64748b;">Carregando matéria no JC Panorama 365...</p>
   <h1 style="font-size: 20px; font-weight: bold; margin-top: 12px;">${escapeHtml(article.title)}</h1>
   <p style="margin-top: 24px;">
     <a href="/noticia/${encodeURIComponent(article.slug)}" style="color: #1E56A0; text-decoration: underline;">
@@ -153,4 +167,3 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
-
