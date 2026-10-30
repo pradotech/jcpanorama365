@@ -41,7 +41,7 @@ export default function Header() {
       {/* Top bar */}
       <div className="bg-navy-950 text-white">
         <div className="max-w-7xl mx-auto px-4 py-1.5 flex items-center justify-between text-xs">
-          <span className="text-navy-300">
+          <span className="text-navy-300 capitalize">
             {new Date().toLocaleDateString('pt-BR', {
               weekday: 'long',
               year: 'numeric',
@@ -49,12 +49,6 @@ export default function Header() {
               day: 'numeric'
             })}
           </span>
-          <Link
-            to="/admin"
-            className="text-navy-300 hover:text-white transition-colors"
-          >
-            Painel Admin
-          </Link>
         </div>
       </div>
 
