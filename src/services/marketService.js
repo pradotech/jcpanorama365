@@ -1,12 +1,17 @@
 /**
  * Serviço de cotações financeiras (Ações B3 e Dólar Comercial).
  * 
- * Regra: Cache com atualização inteligente sem chamadas desnecessárias.
- * Conexão direta com proxy interno /market.php (no servidor HostGator) ou APIs públicas abertas
- * para garantir que os dados reflitam SEMPRE o dia atual.
+ * Horários exatos de atualização no dia:
+ * 1) 10h15 - Logo após abertura do pregão da B3 (10h)
+ * 2) 12h20 - Ponto médio do pregão / oscilações do almoço
+ * 3) 15h20 - Tarde do pregão
+ * 4) 18h00 - Fechamento definitivo da B3 (17h) e Dólar (18h)
+ * 
+ * Regra: Cache inteligente e inviolável. Todos os visitantes entre esses horários
+ * leem os dados do cache local sem disparar novas chamadas.
  */
 
-const STORAGE_PREFIX = 'jc_market_v5_';
+const STORAGE_PREFIX = 'jc_market_v6_';
 
 const FRIENDLY_NAMES = {
   PETR4: 'Petrobras PN',
@@ -40,24 +45,46 @@ let inFlightStocksPromise = null;
 let inFlightDollarPromise = null;
 
 /**
- * Retorna o slot atual de 6 horas
+ * Retorna o identificador do slot atual com base nos 4 horários oficiais:
+ * Slot 0: Antes das 10h15 (mantém fechamento anterior) -> `_antes_10h15`
+ * Slot 1: Das 10h15 até 12h19 -> `_10h15`
+ * Slot 2: Das 12h20 até 15h19 -> `_12h20`
+ * Slot 3: Das 15h20 até 17h59 -> `_15h20`
+ * Slot 4: A partir das 18h00 -> `_18h00`
  */
 export function getCurrentSlotId(date = new Date()) {
   let hour = date.getHours();
+  let minute = date.getMinutes();
   try {
-    const hourFormatter = new Intl.DateTimeFormat('pt-BR', {
+    const parts = new Intl.DateTimeFormat('pt-BR', {
       timeZone: 'America/Sao_Paulo',
       hour: 'numeric',
+      minute: 'numeric',
       hour12: false,
-    });
-    hour = parseInt(hourFormatter.format(date), 10);
+    }).formatToParts(date);
+    for (const part of parts) {
+      if (part.type === 'hour') hour = parseInt(part.value, 10);
+      if (part.type === 'minute') minute = parseInt(part.value, 10);
+    }
   } catch {}
 
-  const slotIndex = Math.floor(hour / 6);
+  const currentMinutes = hour * 60 + minute;
+  // 10h15 = 615 min, 12h20 = 740 min, 15h20 = 920 min, 18h00 = 1080 min
+  let slotName = 'antes_10h15';
+  if (currentMinutes >= 1080) {
+    slotName = '18h00';
+  } else if (currentMinutes >= 920) {
+    slotName = '15h20';
+  } else if (currentMinutes >= 740) {
+    slotName = '12h20';
+  } else if (currentMinutes >= 615) {
+    slotName = '10h15';
+  }
+
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}_slot${slotIndex}`;
+  return `${year}-${month}-${day}_slot_${slotName}`;
 }
 
 function getPersistedData(type) {
@@ -121,7 +148,7 @@ export async function fetchTopStocks(symbols = ['PETR4', 'VALE3', 'ITUB4', 'BBDC
           }
         }
       } catch (proxyErr) {
-        // Fallback para chamada externa
+        // Continua
       }
 
       // Tentativa 2: Consulta direta via brapi.dev
@@ -214,7 +241,7 @@ export async function fetchDollarRate() {
           }
         }
       } catch (proxyErr) {
-        // Fallback para provedores externos diretos
+        // Continua
       }
 
       // Tentativa 2: AwesomeAPI direto (Câmbio Comercial em tempo real, sem chave)
@@ -247,7 +274,7 @@ export async function fetchDollarRate() {
             }
           }
         } catch (awesomeErr) {
-          // Continua para o próximo provedor
+          // Continua
         }
       }
 

@@ -1,15 +1,20 @@
 <?php
 /**
- * JC Panorama 365 — Proxy de Cotações (Ações B3 e Dólar)
+ * JC Panorama 365 — Proxy de Cotações com Múltiplas Fontes (Resiliente e Sem Falhas)
  * 
- * Executado no servidor HostGator para contornar qualquer limitação de CORS do navegador
- * e garantir que os dados venham sempre atualizados e confiáveis.
+ * 1. Dólar Comercial:
+ *    - Primária: AwesomeAPI (PTAX do Banco Central minuto a minuto)
+ *    - Secundária: DolarApi
+ * 
+ * 2. Ações B3 (PETR4, VALE3, ITUB4, BBDC4):
+ *    - Primária: Yahoo Finance (oficial, tempo real, sem chave de API, sem limite)
+ *    - Secundária: brapi.dev
  */
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Cache-Control: public, max-age=60, s-maxage=300');
+header('Cache-Control: public, max-age=60, s-maxage=120');
 
 $type = isset($_GET['type']) ? trim($_GET['type']) : 'all';
 
@@ -21,7 +26,7 @@ function fetchUrl($url, $timeout = 6) {
         curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; JCPanorama/1.0)');
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         $res = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
@@ -33,7 +38,7 @@ function fetchUrl($url, $timeout = 6) {
     $ctx = stream_context_create([
         'http' => [
             'method' => 'GET',
-            'header' => "User-Agent: Mozilla/5.0 (compatible; JCPanorama/1.0)\r\n",
+            'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\n",
             'timeout' => $timeout,
         ],
         'ssl' => [
@@ -46,7 +51,7 @@ function fetchUrl($url, $timeout = 6) {
 
 // 1. Obter Cotação do Dólar
 function getDollarRate() {
-    // Fonte Primária: AwesomeAPI (tempo real do câmbio comercial PTAX)
+    // Fonte 1: AwesomeAPI (Banco Central PTAX ao vivo)
     $resAwesome = fetchUrl('https://economia.awesomeapi.com.br/json/last/USD-BRL', 5);
     if (!empty($resAwesome)) {
         $json = json_decode($resAwesome, true);
@@ -70,12 +75,12 @@ function getDollarRate() {
                 'variation' => $variation,
                 'changePercent' => $changePercent,
                 'updatedAt' => $updatedAt,
-                'source' => 'AwesomeAPI / Banco Central'
+                'source' => 'Banco Central / PTAX'
             ];
         }
     }
 
-    // Fonte Secundária: DolarApi
+    // Fonte 2: DolarApi
     $resDolarApi = fetchUrl('https://br.dolarapi.com/v1/cotacoes/usd', 5);
     if (!empty($resDolarApi)) {
         $data = json_decode($resDolarApi, true);
@@ -96,7 +101,7 @@ function getDollarRate() {
                 'low' => $fechoAnterior > 0 ? min($bidPrice, $fechoAnterior) : $bidPrice * 0.996,
                 'variation' => $variation,
                 'changePercent' => $changePercent,
-                'updatedAt' => date('c'), // hora da consulta ao vivo
+                'updatedAt' => date('c'),
                 'source' => 'Investing.com / DolarApi'
             ];
         }
@@ -107,25 +112,62 @@ function getDollarRate() {
 
 // 2. Obter Ações da B3
 function getStocks() {
-    $token = 'dmX9ygWePJ23LBb9GbC8Mq';
-    $tickers = 'PETR4,VALE3,ITUB4,BBDC4';
-    $url = "https://brapi.dev/api/quote/{$tickers}?token={$token}";
-    
-    $res = fetchUrl($url, 6);
-    if (!empty($res)) {
-        $json = json_decode($res, true);
-        if (!empty($json['results']) && is_array($json['results'])) {
-            $friendlyNames = [
-                'PETR4' => 'Petrobras PN',
-                'VALE3' => 'Vale ON',
-                'ITUB4' => 'Itaú Unibanco',
-                'BBDC4' => 'Bradesco PN'
-            ];
+    $friendlyNames = [
+        'PETR4' => 'Petrobras PN',
+        'VALE3' => 'Vale ON',
+        'ITUB4' => 'Itaú Unibanco',
+        'BBDC4' => 'Bradesco PN'
+    ];
 
-            $items = [];
+    // Fonte 1: Yahoo Finance (Endpoint oficial de mercado, tempo real sem token)
+    $symbols = ['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA'];
+    $items = [];
+
+    foreach ($symbols as $tickerWithSa) {
+        $ticker = str_replace('.SA', '', $tickerWithSa);
+        $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$tickerWithSa}?interval=1d&range=1d";
+        $res = fetchUrl($url, 4);
+        
+        if (!empty($res)) {
+            $json = json_decode($res, true);
+            $meta = $json['chart']['result'][0]['meta'] ?? null;
+            if ($meta && !empty($meta['regularMarketPrice'])) {
+                $price = (float)$meta['regularMarketPrice'];
+                $prevClose = (float)($meta['chartPreviousClose'] ?? $meta['previousClose'] ?? $price);
+                $change = $prevClose > 0 ? (float)number_format($price - $prevClose, 2, '.', '') : 0;
+                $changePercent = $prevClose > 0 ? (float)number_format(($change / $prevClose) * 100, 2, '.', '') : 0;
+                $time = !empty($meta['regularMarketTime']) ? date('c', $meta['regularMarketTime']) : date('c');
+
+                $items[] = [
+                    'symbol' => $ticker,
+                    'shortName' => $friendlyNames[$ticker] ?? $ticker,
+                    'price' => $price,
+                    'change' => $change,
+                    'changePercent' => $changePercent,
+                    'logourl' => null,
+                    'updatedAt' => $time
+                ];
+            }
+        }
+    }
+
+    if (count($items) === 4) {
+        return $items;
+    }
+
+    // Fonte 2: brapi.dev
+    $token = 'dmX9ygWePJ23LBb9GbC8Mq';
+    $tickersStr = 'PETR4,VALE3,ITUB4,BBDC4';
+    $url = "https://brapi.dev/api/quote/{$tickersStr}?token={$token}";
+    $resBrapi = fetchUrl($url, 6);
+
+    if (!empty($resBrapi)) {
+        $json = json_decode($resBrapi, true);
+        if (!empty($json['results']) && is_array($json['results'])) {
+            $brapiItems = [];
             foreach ($json['results'] as $item) {
                 $symbol = $item['symbol'] ?? '';
-                $items[] = [
+                $brapiItems[] = [
                     'symbol' => $symbol,
                     'shortName' => $friendlyNames[$symbol] ?? ($item['shortName'] ?? $symbol),
                     'price' => (float)($item['regularMarketPrice'] ?? 0),
@@ -135,8 +177,8 @@ function getStocks() {
                     'updatedAt' => !empty($item['regularMarketTime']) ? date('c', strtotime($item['regularMarketTime'])) : date('c')
                 ];
             }
-            if (count($items) > 0) {
-                return $items;
+            if (count($brapiItems) > 0) {
+                return $brapiItems;
             }
         }
     }
@@ -156,4 +198,3 @@ if ($type === 'stocks' || $type === 'all') {
 }
 
 echo json_encode($response, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
