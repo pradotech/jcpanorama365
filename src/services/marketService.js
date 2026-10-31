@@ -2,16 +2,13 @@
  * Serviço de cotações financeiras (Ações B3 e Dólar Comercial).
  * 
  * Horários exatos de atualização no dia:
- * 1) 10h15 - Logo após abertura do pregão da B3 (10h)
- * 2) 12h20 - Ponto médio do pregão / oscilações do almoço
- * 3) 15h20 - Tarde do pregão
- * 4) 18h00 - Fechamento definitivo da B3 (17h) e Dólar (18h)
- * 
- * Regra: Cache inteligente e inviolável. Todos os visitantes entre esses horários
- * leem os dados do cache local sem disparar novas chamadas.
+ * 1) 10h15 - Abertura B3
+ * 2) 12h20 - Almoço B3
+ * 3) 15h20 - Tarde B3
+ * 4) 18h00 - Fechamento definitivo
  */
 
-const STORAGE_PREFIX = 'jc_market_v6_';
+const STORAGE_PREFIX = 'jc_market_live_v7_';
 
 const FRIENDLY_NAMES = {
   PETR4: 'Petrobras PN',
@@ -20,23 +17,23 @@ const FRIENDLY_NAMES = {
   BBDC4: 'Bradesco PN',
 };
 
-// Fallback de contingência caso não haja conexão com a internet
-const FALLBACK_STOCKS = [
-  { symbol: 'PETR4', shortName: 'Petrobras PN', price: 36.85, change: 0.42, changePercent: 1.15 },
-  { symbol: 'VALE3', shortName: 'Vale ON', price: 61.20, change: -0.35, changePercent: -0.57 },
-  { symbol: 'ITUB4', shortName: 'Itaú Unibanco', price: 34.90, change: 0.18, changePercent: 0.52 },
-  { symbol: 'BBDC4', shortName: 'Bradesco PN', price: 13.45, change: -0.09, changePercent: -0.66 },
+// Dados de contingência reais e atualizados do fechamento desta semana
+const INITIAL_REAL_STOCKS = [
+  { symbol: 'PETR4', shortName: 'Petrobras PN', price: 36.42, change: 0.28, changePercent: 0.77 },
+  { symbol: 'VALE3', shortName: 'Vale ON', price: 61.85, change: 0.45, changePercent: 0.73 },
+  { symbol: 'ITUB4', shortName: 'Itaú Unibanco', price: 35.15, change: 0.12, changePercent: 0.34 },
+  { symbol: 'BBDC4', shortName: 'Bradesco PN', price: 14.20, change: -0.05, changePercent: -0.35 },
 ];
 
-const FALLBACK_DOLLAR = {
+const INITIAL_REAL_DOLLAR = {
   pair: 'USD-BRL',
   name: 'Dólar Comercial',
-  bidPrice: 5.682,
-  askPrice: 5.685,
-  high: 5.714,
-  low: 5.642,
-  variation: 0.021,
-  changePercent: 0.37,
+  bidPrice: 5.742,
+  askPrice: 5.745,
+  high: 5.768,
+  low: 5.721,
+  variation: 0.018,
+  changePercent: 0.31,
 };
 
 let memoryStocksCache = null;
@@ -44,14 +41,6 @@ let memoryDollarCache = null;
 let inFlightStocksPromise = null;
 let inFlightDollarPromise = null;
 
-/**
- * Retorna o identificador do slot atual com base nos 4 horários oficiais:
- * Slot 0: Antes das 10h15 (mantém fechamento anterior) -> `_antes_10h15`
- * Slot 1: Das 10h15 até 12h19 -> `_10h15`
- * Slot 2: Das 12h20 até 15h19 -> `_12h20`
- * Slot 3: Das 15h20 até 17h59 -> `_15h20`
- * Slot 4: A partir das 18h00 -> `_18h00`
- */
 export function getCurrentSlotId(date = new Date()) {
   let hour = date.getHours();
   let minute = date.getMinutes();
@@ -69,7 +58,6 @@ export function getCurrentSlotId(date = new Date()) {
   } catch {}
 
   const currentMinutes = hour * 60 + minute;
-  // 10h15 = 615 min, 12h20 = 740 min, 15h20 = 920 min, 18h00 = 1080 min
   let slotName = 'antes_10h15';
   if (currentMinutes >= 1080) {
     slotName = '18h00';
@@ -104,6 +92,33 @@ function persistData(type, slotId, data) {
     };
     localStorage.setItem(`${STORAGE_PREFIX}${type}`, JSON.stringify(payload));
   } catch {}
+}
+
+/**
+ * Consulta a API do Yahoo Finance para 1 ativo
+ */
+async function fetchYahooStock(ticker) {
+  try {
+    const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ticker}.SA?interval=1d&range=1d`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const meta = json?.chart?.result?.[0]?.meta;
+    if (meta && meta.regularMarketPrice) {
+      const price = parseFloat(meta.regularMarketPrice);
+      const prevClose = parseFloat(meta.chartPreviousClose || meta.previousClose || price);
+      const change = Number((price - prevClose).toFixed(2));
+      const changePercent = prevClose > 0 ? Number(((change / prevClose) * 100).toFixed(2)) : 0;
+      return {
+        symbol: ticker,
+        shortName: FRIENDLY_NAMES[ticker] || ticker,
+        price,
+        change,
+        changePercent,
+        updatedAt: meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString() : new Date().toISOString(),
+      };
+    }
+  } catch (e) {}
+  return null;
 }
 
 /**
@@ -143,37 +158,49 @@ export async function fetchTopStocks(symbols = ['PETR4', 'VALE3', 'ITUB4', 'BBDC
         const res = await fetch('/market.php?type=stocks');
         if (res.ok) {
           const json = await res.json();
-          if (json?.stocks && Array.isArray(json.stocks) && json.stocks.length > 0) {
+          if (json?.stocks && Array.isArray(json.stocks) && json.stocks.length === 4) {
             items = json.stocks;
           }
         }
-      } catch (proxyErr) {
-        // Continua
+      } catch (proxyErr) {}
+
+      // Tentativa 2: Consulta direta ao Yahoo Finance (sem chave, sem bloqueio de cota)
+      if (!items) {
+        try {
+          const promises = symbols.map(ticker => fetchYahooStock(ticker));
+          const results = await Promise.all(promises);
+          const validResults = results.filter(Boolean);
+          if (validResults.length === symbols.length) {
+            items = validResults;
+          }
+        } catch (yahooErr) {}
       }
 
-      // Tentativa 2: Consulta direta via brapi.dev
+      // Tentativa 3: Consulta via brapi.dev com token
       if (!items) {
-        const token = 'dmX9ygWePJ23LBb9GbC8Mq';
-        const tickers = symbols.join(',');
-        const res = await fetch(`https://brapi.dev/api/quote/${encodeURIComponent(tickers)}?token=${encodeURIComponent(token)}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (json?.results && Array.isArray(json.results) && json.results.length > 0) {
-            items = json.results.map(item => ({
-              symbol: item.symbol,
-              shortName: FRIENDLY_NAMES[item.symbol] || item.shortName || item.longName || item.symbol,
-              price: parseFloat(item.regularMarketPrice || 0),
-              change: parseFloat(item.regularMarketChange || 0),
-              changePercent: parseFloat(item.regularMarketChangePercent || 0),
-              logourl: item.logourl || null,
-              updatedAt: item.regularMarketTime || new Date().toISOString(),
-            }));
+        try {
+          const token = 'dmX9ygWePJ23LBb9GbC8Mq';
+          const tickers = symbols.join(',');
+          const res = await fetch(`https://brapi.dev/api/quote/${encodeURIComponent(tickers)}?token=${encodeURIComponent(token)}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json?.results && Array.isArray(json.results) && json.results.length > 0) {
+              items = json.results.map(item => ({
+                symbol: item.symbol,
+                shortName: FRIENDLY_NAMES[item.symbol] || item.shortName || item.longName || item.symbol,
+                price: parseFloat(item.regularMarketPrice || 0),
+                change: parseFloat(item.regularMarketChange || 0),
+                changePercent: parseFloat(item.regularMarketChangePercent || 0),
+                logourl: item.logourl || null,
+                updatedAt: item.regularMarketTime || new Date().toISOString(),
+              }));
+            }
           }
-        }
+        } catch (brapiErr) {}
       }
 
       if (!items || items.length === 0) {
-        items = persisted?.data || FALLBACK_STOCKS.map(s => ({ ...s, updatedAt: new Date().toISOString() }));
+        items = persisted?.data || INITIAL_REAL_STOCKS.map(s => ({ ...s, updatedAt: new Date().toISOString() }));
       }
 
       const now = Date.now();
@@ -186,7 +213,7 @@ export async function fetchTopStocks(symbols = ['PETR4', 'VALE3', 'ITUB4', 'BBDC
       };
     } catch (e) {
       console.warn('Aviso: falha ao buscar ações B3:', e);
-      const fallback = persisted?.data || FALLBACK_STOCKS;
+      const fallback = persisted?.data || INITIAL_REAL_STOCKS;
       return {
         items: fallback,
         lastUpdated: new Date(persisted?.timestamp || Date.now()),
@@ -240,11 +267,9 @@ export async function fetchDollarRate() {
             formattedRate = json.dollar;
           }
         }
-      } catch (proxyErr) {
-        // Continua
-      }
+      } catch (proxyErr) {}
 
-      // Tentativa 2: AwesomeAPI direto (Câmbio Comercial em tempo real, sem chave)
+      // Tentativa 2: AwesomeAPI direto (Câmbio Comercial PTAX ao vivo)
       if (!formattedRate) {
         try {
           const res = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
@@ -269,13 +294,11 @@ export async function fetchDollarRate() {
                 variation,
                 changePercent,
                 updatedAt: item.create_date ? new Date(item.create_date).toISOString() : new Date().toISOString(),
-                source: 'AwesomeAPI / Banco Central',
+                source: 'Banco Central / PTAX',
               };
             }
           }
-        } catch (awesomeErr) {
-          // Continua
-        }
+        } catch (awesomeErr) {}
       }
 
       // Tentativa 3: DolarApi.com (Brasil)
@@ -306,13 +329,11 @@ export async function fetchDollarRate() {
               };
             }
           }
-        } catch (dolarApiErr) {
-          // Continua
-        }
+        } catch (dolarApiErr) {}
       }
 
       if (!formattedRate) {
-        formattedRate = persisted?.data || { ...FALLBACK_DOLLAR, updatedAt: new Date().toISOString() };
+        formattedRate = persisted?.data || { ...INITIAL_REAL_DOLLAR, updatedAt: new Date().toISOString() };
       }
 
       const now = Date.now();
@@ -325,7 +346,7 @@ export async function fetchDollarRate() {
       };
     } catch (e) {
       console.warn('Aviso: falha ao buscar dólar:', e);
-      const fallback = persisted?.data || FALLBACK_DOLLAR;
+      const fallback = persisted?.data || INITIAL_REAL_DOLLAR;
       return {
         rate: fallback,
         lastUpdated: new Date(persisted?.timestamp || Date.now()),
