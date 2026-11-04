@@ -167,6 +167,15 @@ header('Cache-Control: public, max-age=300, s-maxage=600');
   <meta property="og:description" content="&#8203;">
   <meta property="og:image" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
   <meta property="og:image:secure_url" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
+  <?php
+    $imageMime = 'image/jpeg';
+    if (preg_match('/\.png(\?|$)/i', $imageUrl)) {
+        $imageMime = 'image/png';
+    } elseif (preg_match('/\.webp(\?|$)/i', $imageUrl)) {
+        $imageMime = 'image/webp';
+    }
+  ?>
+  <meta property="og:image:type" content="<?php echo $imageMime; ?>">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
