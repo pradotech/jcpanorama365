@@ -126,15 +126,14 @@ export default function ArticlePage() {
   const handleShare = async () => {
     if (!article) return;
     const url = window.location.href;
-    const shareBody = `📰 *${article.title}*${article.subtitle ? `\n\n${article.subtitle}` : ''}\n\nLeia a matéria completa:`;
+    const shareText = `${url} 📰 *${article.title}*${article.subtitle ? `\n\n${article.subtitle}` : ''}\n\nLeia a matéria completa:`;
 
     // 1. Suporte nativo do celular (iOS / Android): abre WhatsApp, Facebook, etc.
-    // NÃO passamos 'title' para evitar que o Android concatene e duplique o título na mensagem
+    // Enviamos apenas 'text' para evitar que o Android concatene e jogue a URL para o final da mensagem
     if (navigator.share) {
       try {
         await navigator.share({
-          text: shareBody,
-          url: url,
+          text: shareText,
         });
         return;
       } catch (err) {
@@ -144,10 +143,9 @@ export default function ArticlePage() {
     }
 
     // 2. Fallback para navegadores Desktop ou sem suporte a Web Share: copia para a área de transferência
-    const fullTextToCopy = `${shareBody} ${url}`;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
-        await navigator.clipboard.writeText(fullTextToCopy);
+        await navigator.clipboard.writeText(shareText);
         setCopied(true);
         setTimeout(() => setCopied(false), 2500);
         return;
@@ -158,7 +156,7 @@ export default function ArticlePage() {
 
     try {
       const textarea = document.createElement('textarea');
-      textarea.value = fullTextToCopy;
+      textarea.value = shareText;
       textarea.style.position = 'fixed';
       textarea.style.opacity = '0';
       document.body.appendChild(textarea);
