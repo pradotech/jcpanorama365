@@ -28,8 +28,8 @@ export default function MarketOverview() {
 
   const { weather, loading: loadingWeather } = useWeather();
 
-  // No mobile (< 640px), abas: 'weather' | 'dollar' | 'stocks'
-  const [activeTab, setActiveTab] = useState('weather');
+  // No mobile (< 640px), abas: 'dollar' | 'weather' | 'stocks' (Dólar como padrão aberto)
+  const [activeTab, setActiveTab] = useState('dollar');
 
   const dollarVariationPercent = dollar?.changePercent;
   const isDollarPositive = dollarVariationPercent > 0;
@@ -39,19 +39,20 @@ export default function MarketOverview() {
     <div className="w-full">
       {/* ========================================================= */}
       {/* 1. VISUALIZAÇÃO DESKTOP (lg e superior): Empilhados à direita */}
+      {/* Ordem: Dólar -> Previsão do Tempo -> Ações B3                */}
       {/* ========================================================= */}
       <div className="hidden lg:flex flex-col gap-5">
-        {/* Previsão do Tempo ACIMA da Cotação do Dólar */}
-        <WeatherCard
-          weather={weather}
-          loading={loadingWeather}
-        />
-
         {/* Cotação do Dólar */}
         <DollarCard
           dollar={dollar}
           loading={loadingDollar}
           lastUpdated={lastUpdated}
+        />
+
+        {/* Previsão do Tempo */}
+        <WeatherCard
+          weather={weather}
+          loading={loadingWeather}
         />
 
         {/* Cotação Ações B3 */}
@@ -66,53 +67,34 @@ export default function MarketOverview() {
       {/* 2. VISUALIZAÇÃO TABLET (sm a lg: 640px a 1023px)          */}
       {/* ========================================================= */}
       <div className="hidden sm:flex lg:hidden flex-col gap-4">
+        {/* Cotação do Dólar */}
+        <DollarCard
+          dollar={dollar}
+          loading={loadingDollar}
+          lastUpdated={lastUpdated}
+        />
+
         {/* Previsão do Tempo */}
         <WeatherCard
           weather={weather}
           loading={loadingWeather}
         />
 
-        {/* Dólar e B3 lado a lado */}
-        <div className="grid grid-cols-2 gap-4 items-start">
-          <DollarCard
-            dollar={dollar}
-            loading={loadingDollar}
-            lastUpdated={lastUpdated}
-          />
-          <StocksCard
-            stocks={stocks}
-            loading={loadingStocks}
-            lastUpdated={lastUpdated}
-          />
-        </div>
+        {/* Cotação Ações B3 */}
+        <StocksCard
+          stocks={stocks}
+          loading={loadingStocks}
+          lastUpdated={lastUpdated}
+        />
       </div>
 
       {/* ========================================================= */}
       {/* 3. VISUALIZAÇÃO CELULAR (< 640px): 3 Abas Compactas        */}
       {/* ========================================================= */}
       <div className="sm:hidden space-y-2.5">
-        {/* Seletor de 3 abas para mobile */}
+        {/* Seletor de 3 abas para mobile: Dólar -> Clima -> Ações B3 */}
         <div className="flex rounded-xl bg-navy-100/70 p-1 border border-navy-200/60 shadow-xs">
-          {/* Aba Clima */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('weather')}
-            className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'weather'
-                ? 'bg-white text-navy-950 shadow-xs'
-                : 'text-navy-600 hover:text-navy-900'
-            }`}
-          >
-            <CloudSun size={14} className={activeTab === 'weather' ? 'text-amber-500 shrink-0' : 'text-navy-400 shrink-0'} />
-            <span className="truncate">Clima</span>
-            {weather?.temperature !== undefined && (
-              <span className="text-[10px] font-mono text-navy-600 ml-0.5">
-                {weather.temperature}°C
-              </span>
-            )}
-          </button>
-
-          {/* Aba Dólar */}
+          {/* Aba Dólar (Padrão) */}
           <button
             type="button"
             onClick={() => setActiveTab('dollar')}
@@ -133,7 +115,26 @@ export default function MarketOverview() {
             )}
           </button>
 
-          {/* Aba B3 */}
+          {/* Aba Clima (Tempo) */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('weather')}
+            className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'weather'
+                ? 'bg-white text-navy-950 shadow-xs'
+                : 'text-navy-600 hover:text-navy-900'
+            }`}
+          >
+            <CloudSun size={14} className={activeTab === 'weather' ? 'text-amber-500 shrink-0' : 'text-navy-400 shrink-0'} />
+            <span className="truncate">Clima</span>
+            {weather?.temperature !== undefined && (
+              <span className="text-[10px] font-mono text-navy-600 ml-0.5">
+                {weather.temperature}°C
+              </span>
+            )}
+          </button>
+
+          {/* Aba B3 (Bolsa) */}
           <button
             type="button"
             onClick={() => setActiveTab('stocks')}
@@ -150,18 +151,18 @@ export default function MarketOverview() {
 
         {/* Card ativo no celular */}
         <div className="w-full">
-          {activeTab === 'weather' && (
-            <WeatherCard
-              weather={weather}
-              loading={loadingWeather}
-            />
-          )}
-
           {activeTab === 'dollar' && (
             <DollarCard
               dollar={dollar}
               loading={loadingDollar}
               lastUpdated={lastUpdated}
+            />
+          )}
+
+          {activeTab === 'weather' && (
+            <WeatherCard
+              weather={weather}
+              loading={loadingWeather}
             />
           )}
 

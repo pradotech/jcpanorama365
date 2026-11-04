@@ -157,14 +157,14 @@ header('Cache-Control: public, max-age=300, s-maxage=600');
 <head>
   <meta charset="UTF-8">
   <title><?php echo htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
-  <meta name="description" content="<?php echo htmlspecialchars($description, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta name="description" content="">
   <meta name="google-site-verification" content="tcHSM_-VUwLLq_1-2afhEkpP-InydMX2LqyEXD8W1lk">
 
-  <!-- Open Graph / Facebook / WhatsApp -->
+  <!-- Open Graph / Facebook / WhatsApp (Exibe marca/home no card para não duplicar título e subtítulo da mensagem) -->
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="JC Panorama 365">
-  <meta property="og:title" content="<?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>">
-  <meta property="og:description" content="<?php echo htmlspecialchars($description, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta property="og:title" content="JC Panorama 365">
+  <meta property="og:description" content="&#8203;">
   <meta property="og:image" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
   <meta property="og:image:secure_url" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
   <meta property="og:image:width" content="1200">
@@ -175,8 +175,8 @@ header('Cache-Control: public, max-age=300, s-maxage=600');
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="<?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>">
-  <meta name="twitter:description" content="<?php echo htmlspecialchars($description, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta name="twitter:title" content="JC Panorama 365">
+  <meta name="twitter:description" content="&#8203;">
   <meta name="twitter:image" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
 
   <!-- Canonical -->
