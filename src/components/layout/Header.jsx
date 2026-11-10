@@ -1,13 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, Menu, X, Feather, ArrowRight, Newspaper } from 'lucide-react';
+import { Search, X, Feather, ArrowRight, Newspaper } from 'lucide-react';
 import { useNews } from '../../hooks/useNews';
 import CategoryBadge from '../ui/CategoryBadge';
 import { formatTimeAgo } from '../../lib/dateUtils';
 import categories from '../../data/categories';
 
 export default function Header() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -30,7 +29,6 @@ export default function Header() {
     setSearchOpen(false);
     setSearchQuery('');
     setIsSearchFocused(false);
-    setMobileMenuOpen(false);
   }, [location.pathname]);
 
   // Fechar dropdown ao clicar fora (desktop)
@@ -215,14 +213,6 @@ export default function Header() {
             >
               <Search size={20} />
             </button>
-
-            {/* Mobile menu toggle */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg text-navy-600 hover:bg-navy-50 transition-colors cursor-pointer"
-            >
-              {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
           </div>
         </div>
 
@@ -379,67 +369,6 @@ export default function Header() {
           </Link>
         </div>
       </nav>
-
-      {/* Mobile menu */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden absolute top-full left-0 right-0 bg-white border-b border-navy-200 shadow-lg z-50">
-          <nav className="max-w-7xl mx-auto px-4 py-3">
-            <ul className="flex flex-col gap-1">
-              <li>
-                <Link
-                  to="/"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-4 py-2.5 rounded-lg text-sm font-semibold text-navy-700 hover:bg-navy-50 transition-colors"
-                >
-                  Início
-                </Link>
-              </li>
-              {categories.filter(cat => cat.id !== 'colunistas').map(cat => {
-                const Icon = cat.icon;
-                return (
-                  <li key={cat.id}>
-                    <Link
-                      to={`/categoria/${cat.slug}`}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-medium text-navy-700 hover:bg-navy-50 transition-colors"
-                    >
-                      <Icon size={16} style={{ color: cat.color }} />
-                      {cat.name}
-                    </Link>
-                  </li>
-                );
-              })}
-              <li>
-                <Link
-                  to="/colunistas"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors ${isActive('/colunistas') || location.pathname.startsWith('/colunista')
-                      ? 'bg-accent-50 text-accent-700 font-bold'
-                      : 'text-navy-800 hover:bg-navy-50'
-                    }`}
-                >
-                  <Feather size={16} className="text-accent-500" />
-                  <span>Nossos Colunistas</span>
-                </Link>
-              </li>
-              {/* {latestEdition && (
-                <li className="pt-2 mt-2 border-t border-navy-100">
-                  <a
-                    href={latestEdition.pdf_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-sm font-semibold text-navy-950 bg-navy-50 hover:bg-navy-100 transition-colors"
-                  >
-                    <Download size={16} />
-                    Baixar Edição do Dia
-                  </a>
-                </li>
-              )} */}
-            </ul>
-          </nav>
-        </div>
-      )}
     </header>
   );
 }
