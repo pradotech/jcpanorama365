@@ -86,15 +86,15 @@ export default function Sidebar({ onlyHome = false }) {
               to={`/noticia/${item.slug}`}
               className="flex items-start gap-3 px-5 py-3.5 hover:bg-navy-50/50 transition-colors group"
             >
-              <span className="text-2xl font-black text-navy-200 group-hover:text-accent-500 transition-colors w-7 shrink-0">
-                {String(index + 1).padStart(2, '0')}
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-navy-800 group-hover:text-accent-600 transition-colors leading-snug">
-                  {item.title}
-                </p>
-                <CategoryBadge categoryId={item.category} size="sm" />
-              </div>
+                <span className="text-2xl font-black text-navy-200 group-hover:text-accent-500 transition-colors w-9 shrink-0 tabular-nums whitespace-nowrap">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-navy-800 group-hover:text-accent-600 transition-colors leading-snug">
+                    {item.title}
+                  </p>
+                  <CategoryBadge categoryId={item.category} size="sm" />
+                </div>
             </Link>
           ))}
         </div>

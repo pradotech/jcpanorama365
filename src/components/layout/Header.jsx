@@ -299,8 +299,8 @@ export default function Header() {
                 <Link
                   to="/colunistas"
                   className={`flex items-center gap-1.5 px-3.5 py-3 text-sm font-semibold transition-all relative ${isActive('/colunistas') || location.pathname.startsWith('/colunista')
-                      ? 'text-accent-600 font-bold'
-                      : 'text-navy-800 hover:text-accent-600'
+                    ? 'text-accent-600 font-bold'
+                    : 'text-navy-800 hover:text-accent-600'
                     }`}
                 >
                   <Feather size={15} className="text-accent-500" />
@@ -327,8 +327,8 @@ export default function Header() {
           <Link
             to="/"
             className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${isActive('/')
-                ? 'bg-accent-600 text-white shadow-xs'
-                : 'text-navy-700 bg-navy-50 hover:bg-navy-100'
+              ? 'bg-accent-600 text-white shadow-xs'
+              : 'text-navy-700 bg-navy-50 hover:bg-navy-100'
               }`}
           >
             Início
@@ -342,8 +342,8 @@ export default function Header() {
                 key={cat.id}
                 to={`/categoria/${cat.slug}`}
                 className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${active
-                    ? 'shadow-xs font-bold'
-                    : 'text-navy-700 bg-navy-50/80 hover:bg-navy-100'
+                  ? 'shadow-xs font-bold'
+                  : 'text-navy-700 bg-navy-50/80 hover:bg-navy-100'
                   }`}
                 style={
                   active
@@ -360,8 +360,8 @@ export default function Header() {
           <Link
             to="/colunistas"
             className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${isActive('/colunistas') || location.pathname.startsWith('/colunista')
-                ? 'bg-accent-50 text-accent-700 font-bold border border-accent-300'
-                : 'text-navy-700 bg-navy-50/80 hover:bg-navy-100'
+              ? 'bg-accent-50 text-accent-700 font-bold border border-accent-300'
+              : 'text-navy-700 bg-navy-50/80 hover:bg-navy-100'
               }`}
           >
             <Feather size={13} className="text-accent-500" />
