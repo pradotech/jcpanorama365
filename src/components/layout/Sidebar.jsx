@@ -1,13 +1,73 @@
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, TrendingUp } from 'lucide-react';
 import { useNews } from '../../hooks/useNews';
 import CategoryBadge from '../ui/CategoryBadge';
 import { formatTimeAgo } from '../../lib/dateUtils';
+import { getMostReadNews } from '../../services/analyticsService';
 
 export default function Sidebar({ onlyHome = false }) {
   const { getPublishedNews, getHomeNews } = useNews();
   const allNews = onlyHome ? getHomeNews() : getPublishedNews();
   const latestNews = allNews.slice(0, 6);
+
+  const [mostReadRanking, setMostReadRanking] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getMostReadNews(5).then(ranking => {
+      if (isMounted && Array.isArray(ranking) && ranking.length > 0) {
+        setMostReadRanking(ranking);
+      }
+    }).catch(err => {
+      console.warn('Erro ao carregar ranking de mais lidas por clique:', err);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Ordena as mais lidas com base real nos cliques
+  const mostReadItems = useMemo(() => {
+    if (!mostReadRanking || mostReadRanking.length === 0) {
+      return allNews.slice(0, 5);
+    }
+
+    const result = [];
+    const usedIds = new Set();
+
+    // 1. Inclui as notícias do ranking ordenado por cliques
+    for (const ranked of mostReadRanking) {
+      const match = allNews.find(n => n.id === ranked.news_id || n.slug === ranked.slug);
+      if (match) {
+        result.push(match);
+        usedIds.add(match.id);
+      } else if (ranked.slug && ranked.title) {
+        result.push({
+          id: ranked.news_id,
+          title: ranked.title,
+          slug: ranked.slug,
+          category: ranked.category,
+        });
+        usedIds.add(ranked.news_id);
+      }
+      if (result.length >= 5) break;
+    }
+
+    // 2. Se o ranking tiver menos de 5, completa com notícias recentes não duplicadas
+    if (result.length < 5) {
+      for (const item of allNews) {
+        if (!usedIds.has(item.id)) {
+          result.push(item);
+          usedIds.add(item.id);
+          if (result.length >= 5) break;
+        }
+      }
+    }
+
+    return result;
+  }, [mostReadRanking, allNews]);
 
   return (
     <aside className="space-y-6">
@@ -20,9 +80,9 @@ export default function Sidebar({ onlyHome = false }) {
           </h3>
         </div>
         <div className="divide-y divide-navy-50">
-          {allNews.slice(0, 5).map((item, index) => (
+          {mostReadItems.map((item, index) => (
             <Link
-              key={item.id}
+              key={item.id || item.news_id || index}
               to={`/noticia/${item.slug}`}
               className="flex items-start gap-3 px-5 py-3.5 hover:bg-navy-50/50 transition-colors group"
             >

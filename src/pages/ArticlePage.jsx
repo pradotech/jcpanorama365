@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Clock, User, ArrowLeft, ArrowRight, Share2, Check, ChevronLeft, ChevronRight, Images } from 'lucide-react';
+import { Clock, User, ArrowLeft, ArrowRight, Share2, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNews } from '../hooks/useNews';
+import { supabase } from '../lib/supabase';
 import { getCategoryById } from '../data/categories';
 import CategoryBadge from '../components/ui/CategoryBadge';
 import NewsCard from '../components/news/NewsCard';
@@ -10,12 +11,58 @@ import { getArticleImages } from '../lib/imageUtils';
 
 export default function ArticlePage() {
   const { slug } = useParams();
-  const { getNewsBySlug, getNewsByCategory } = useNews();
-  const article = getNewsBySlug(slug);
+  const { getNewsBySlug, getNewsByCategory, loading: newsLoading } = useNews();
+  const contextArticle = getNewsBySlug(slug);
+
+  const [directArticle, setDirectArticle] = useState(null);
+  const [isDirectLoading, setIsDirectLoading] = useState(() => !contextArticle);
+
+  const article = contextArticle || directArticle;
   const [copied, setCopied] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isGalleryHovered, setIsGalleryHovered] = useState(false);
   const recordedArticleIdRef = useRef(null);
+
+  // Busca a notícia diretamente pelo slug caso o usuário abra direto pelo WhatsApp/link
+  useEffect(() => {
+    if (contextArticle) {
+      setIsDirectLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsDirectLoading(true);
+
+    const fetchDirectArticle = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('news')
+          .select('*')
+          .eq('slug', slug)
+          .maybeSingle();
+
+        if (isMounted) {
+          if (!error && data) {
+            const images = Array.isArray(data.images) && data.images.length > 0
+              ? data.images
+              : (data.image_url ? [data.image_url] : []);
+            setDirectArticle({ ...data, images });
+          }
+          setIsDirectLoading(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setIsDirectLoading(false);
+        }
+      }
+    };
+
+    fetchDirectArticle();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [slug, contextArticle]);
 
   const images = getArticleImages(article);
 
@@ -171,6 +218,17 @@ export default function ArticlePage() {
   };
 
   if (!article) {
+    if (isDirectLoading || newsLoading) {
+      return (
+        <div className="min-h-[65vh] flex flex-col items-center justify-center px-4 py-24">
+          <div className="w-12 h-12 border-4 border-navy-200 border-t-accent-600 rounded-full animate-spin mb-4" />
+          <p className="text-navy-700 font-semibold text-sm animate-pulse">
+            Carregando notícia...
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
         <h1 className="text-3xl font-bold text-navy-900 mb-4">Notícia não encontrada</h1>

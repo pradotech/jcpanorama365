@@ -307,6 +307,15 @@
   word-break: break-word;
 }
 
+/* Ocultar barra de rolagem mantendo a função de scroll */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Scrollbar customizada */
 ::-webkit-scrollbar {
   width: 8px;

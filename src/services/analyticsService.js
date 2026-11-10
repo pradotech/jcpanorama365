@@ -130,6 +130,60 @@ export async function getNewsViewsByDate(targetDate) {
 }
 
 /**
+ * Retorna a lista das notícias mais lidas ordenadas estritamente pelo número de cliques.
+ * Prioriza os cliques de hoje (no fuso de Brasília). Se houver menos de 'limit' notícias
+ * com cliques hoje (ex: de madrugada), mescla com os cliques de ontem para manter o ranking sempre preenchido.
+ * 
+ * @param {number} limit - Quantidade desejada de notícias (padrão: 5)
+ * @returns {Promise<Array>} Lista de notícias ordenadas por cliques em ordem decrescente
+ */
+export async function getMostReadNews(limit = 5) {
+  try {
+    const today = getLocalDateString();
+    const todayRanking = await getNewsViewsByDate(today);
+
+    // Se hoje já temos notícias suficientes com cliques, retorna diretamente
+    if (todayRanking && todayRanking.length >= limit) {
+      return todayRanking.slice(0, limit);
+    }
+
+    // Se hoje tiver poucas notícias (ex: início do dia), busca os cliques de ontem para somar
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = getLocalDateString(yesterdayDate);
+    const yesterdayRanking = await getNewsViewsByDate(yesterday);
+
+    const counterMap = new Map();
+
+    (todayRanking || []).forEach(item => {
+      counterMap.set(item.news_id, {
+        ...item,
+        total_clicks: Number(item.total_clicks || 0),
+      });
+    });
+
+    (yesterdayRanking || []).forEach(item => {
+      const existing = counterMap.get(item.news_id);
+      if (existing) {
+        existing.total_clicks += Number(item.total_clicks || 0);
+      } else {
+        counterMap.set(item.news_id, {
+          ...item,
+          total_clicks: Number(item.total_clicks || 0),
+        });
+      }
+    });
+
+    return Array.from(counterMap.values())
+      .sort((a, b) => b.total_clicks - a.total_clicks)
+      .slice(0, limit);
+  } catch (err) {
+    console.error('Falha ao obter ranking de mais lidas por clique:', err);
+    return [];
+  }
+}
+
+/**
  * Busca o histórico de cliques dos últimos X dias para montar gráficos de linha/barra.
  */
 export async function getDailyViewsHistory(daysLimit = 14) {
