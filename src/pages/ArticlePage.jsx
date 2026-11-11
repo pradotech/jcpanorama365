@@ -8,6 +8,7 @@ import CategoryBadge from '../components/ui/CategoryBadge';
 import NewsCard from '../components/news/NewsCard';
 import { recordNewsView } from '../services/analyticsService';
 import { getArticleImages } from '../lib/imageUtils';
+import { toUnicodeBold } from '../lib/stringUtils';
 
 function WhatsAppIcon({ className = "w-4 h-4" }) {
   return (
@@ -233,24 +234,26 @@ export default function ArticlePage() {
     window.open(waUrl, '_blank', 'noopener,noreferrer');
   };
 
-  // Facebook: Título da notícia + "Leia aqui: URL"
+  // Facebook: Título em negrito real (Unicode Bold) + "Leia aqui: URL"
   const handleShareFacebook = () => {
     if (!article) return;
     const url = window.location.href;
-    const quote = `${article.title}\n\nLeia aqui: ${url}`;
+    const boldTitle = toUnicodeBold(article.title);
+    const quote = `${boldTitle}\n\nLeia aqui: ${url}`;
     const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(quote)}`;
     window.open(fbUrl, '_blank', 'noopener,noreferrer,width=600,height=500');
   };
 
-  // Instagram: copia "Título + Leia aqui: URL" e notifica o usuário
+  // Instagram: copia "Título em negrito real (Unicode Bold) + Leia aqui: URL" e notifica o usuário
   const handleShareInstagram = async () => {
     if (!article) return;
     const url = window.location.href;
-    const instaText = `${article.title}\n\nLeia aqui: ${url}`;
+    const boldTitle = toUnicodeBold(article.title);
+    const instaText = `${boldTitle}\n\nLeia aqui: ${url}`;
     const success = await copyToClipboard(instaText);
     if (success) {
       setCopiedType('insta');
-      showToast('Título e link copiados para o Instagram!');
+      showToast('Título em negrito e link copiados para o Instagram!');
       setTimeout(() => setCopiedType(''), 3000);
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         setTimeout(() => {
