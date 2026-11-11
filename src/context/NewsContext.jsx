@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeText } from '../lib/stringUtils';
+import { applyCustomSlotOrdering } from '../lib/newsOrdering';
 
 const NewsContext = createContext(null);
 const STORAGE_KEY = 'jc_news_cache';
@@ -242,6 +243,10 @@ export function NewsProvider({ children }) {
         updateData.category = 'colunistas';
       }
     }
+
+    if (updates.home_order !== undefined) {
+      updateData.home_order = Number(updates.home_order) || 0;
+    }
     
     if (updates.status === 'published') {
       const current = news.find(n => n.id === id);
@@ -352,27 +357,17 @@ export function NewsProvider({ children }) {
   }, [news]);
 
   const getFeaturedNews = useCallback(() => {
-    return news
-      .filter(item => item.featured && item.status === 'published' && item.show_on_home !== false)
-      .sort((a, b) => {
-        const orderA = (a.home_order && Number(a.home_order) > 0) ? Number(a.home_order) : 999999;
-        const orderB = (b.home_order && Number(b.home_order) > 0) ? Number(b.home_order) : 999999;
-        if (orderA !== orderB) return orderA - orderB;
-        return new Date(b.published_at || 0) - new Date(a.published_at || 0);
-      });
+    const featuredItems = news.filter(
+      item => item.featured && item.status === 'published' && item.show_on_home !== false
+    );
+    return applyCustomSlotOrdering(featuredItems);
   }, [news]);
 
   const getHomeNews = useCallback(() => {
-    return news
-      .filter(item => item.show_on_home && item.status === 'published')
-      .sort((a, b) => {
-        // Notícias com home_order > 0 têm prioridade fixa (1, 2, 3...)
-        // Notícias sem ordem definida (0, null, undefined) ficam depois, ordenadas por data mais recente
-        const orderA = (a.home_order && Number(a.home_order) > 0) ? Number(a.home_order) : 999999;
-        const orderB = (b.home_order && Number(b.home_order) > 0) ? Number(b.home_order) : 999999;
-        if (orderA !== orderB) return orderA - orderB;
-        return new Date(b.published_at || 0) - new Date(a.published_at || 0);
-      });
+    const homeItems = news.filter(
+      item => item.show_on_home && item.status === 'published'
+    );
+    return applyCustomSlotOrdering(homeItems);
   }, [news]);
 
   const searchNews = useCallback((query) => {
