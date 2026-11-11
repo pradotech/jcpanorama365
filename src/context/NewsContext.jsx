@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { normalizeText } from '../lib/stringUtils';
 
 const NewsContext = createContext(null);
 const STORAGE_KEY = 'jc_news_cache';
@@ -375,17 +376,31 @@ export function NewsProvider({ children }) {
   }, [news]);
 
   const searchNews = useCallback((query) => {
-    const q = query.toLowerCase();
+    if (!query) return [];
+    const normalizedQuery = normalizeText(query).trim();
+    if (!normalizedQuery) return [];
+
+    const words = normalizedQuery.split(/\s+/).filter(Boolean);
+
     return news
-      .filter(item =>
-        item.status === 'published' && (
-          item.title.toLowerCase().includes(q) ||
-          (item.subtitle && item.subtitle.toLowerCase().includes(q)) ||
-          (item.content && item.content.toLowerCase().includes(q)) ||
-          (item.author && item.author.toLowerCase().includes(q))
-        )
-      )
-      .sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
+      .filter(item => {
+        if (item.status !== 'published') return false;
+
+        const title = normalizeText(item.title);
+        const subtitle = normalizeText(item.subtitle);
+        const content = normalizeText(item.content);
+        const author = normalizeText(item.author);
+
+        const fullText = `${title} ${subtitle} ${author} ${content}`;
+        return words.every(word => fullText.includes(word));
+      })
+      .sort((a, b) => {
+        const titleA = normalizeText(a.title).includes(normalizedQuery);
+        const titleB = normalizeText(b.title).includes(normalizedQuery);
+        if (titleA && !titleB) return -1;
+        if (!titleA && titleB) return 1;
+        return new Date(b.published_at || 0) - new Date(a.published_at || 0);
+      });
   }, [news]);
 
   const getAllNews = useCallback(() => {

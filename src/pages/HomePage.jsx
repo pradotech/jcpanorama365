@@ -11,7 +11,7 @@ import MarketOverview from '../components/market/MarketOverview';
 import { Clock } from 'lucide-react';
 
 export default function HomePage() {
-  const { getFeaturedNews, getHomeNews, loading } = useNews();
+  const { getFeaturedNews, getHomeNews, getNewsByCategory, loading } = useNews();
 
   if (loading) {
     return (
@@ -47,11 +47,20 @@ export default function HomePage() {
     categoryNewsMap[cat].push(article);
   });
 
-  // Filtrar e ordenar apenas os segmentos de notícias mais ativos da home
-  const topActiveCategories = Object.keys(categoryNewsMap)
-    .filter(catId => catId !== 'colunistas' && categoryNewsMap[catId].length > 0)
-    .sort((a, b) => categoryNewsMap[b].length - categoryNewsMap[a].length)
-    .slice(0, 4);
+  // Todas as categorias editoriais existentes (exceto Colunistas que já tem seção própria acima)
+  // Traz todas as categorias que possuem notícias (priorizando homeNews e complementando com as publicadas)
+  const activeCategories = categories
+    .filter(cat => cat.id !== 'colunistas')
+    .map(cat => {
+      const articles = (categoryNewsMap[cat.id] && categoryNewsMap[cat.id].length > 0)
+        ? categoryNewsMap[cat.id]
+        : (getNewsByCategory ? getNewsByCategory(cat.id) : []);
+      return {
+        ...cat,
+        articles,
+      };
+    })
+    .filter(cat => cat.articles.length > 0);
 
   return (
     <>
@@ -127,24 +136,20 @@ export default function HomePage() {
           <ColumnistsSection articles={columnistArticles} />
         </div>
 
-        {/* Main content (Segmentos Mais Ativos) */}
+        {/* Main content (Todas as Categorias Existentes com Notícias) */}
         <div className="space-y-10">
-          {topActiveCategories.map(catId => {
-            const cat = categories.find(c => c.id === catId);
-            if (!cat) return null;
-            return (
-              <NewsList
-                key={cat.id}
-                categoryId={cat.id}
-                articles={categoryNewsMap[catId]}
-                limit={4}
-                cardVariant="compact"
-              />
-            );
-          })}
+          {activeCategories.map(cat => (
+            <NewsList
+              key={cat.id}
+              categoryId={cat.id}
+              articles={cat.articles}
+              limit={4}
+              cardVariant="compact"
+            />
+          ))}
 
           {/* Caso não haja nenhuma notícia publicada */}
-          {topActiveCategories.length === 0 && (
+          {activeCategories.length === 0 && (
             <div className="text-center py-16">
               <p className="text-navy-400 text-lg">
                 Nenhuma notícia publicada ainda.

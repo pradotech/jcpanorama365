@@ -13,6 +13,7 @@ export default function Header() {
 
   const desktopSearchRef = useRef(null);
   const mobileSearchRef = useRef(null);
+  const mobileToggleRef = useRef(null);
 
   const { searchNews } = useNews();
   const navigate = useNavigate();
@@ -31,25 +32,49 @@ export default function Header() {
     setIsSearchFocused(false);
   }, [location.pathname]);
 
-  // Fechar dropdown ao clicar fora (desktop)
+  // Fechar busca ao clicar fora, ao rolar a página ou ao apertar ESC
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (
-        desktopSearchRef.current &&
-        !desktopSearchRef.current.contains(e.target) &&
-        mobileSearchRef.current &&
-        !mobileSearchRef.current.contains(e.target)
-      ) {
+      // Ignora clique no próprio botão de alternância do mobile
+      if (mobileToggleRef.current && mobileToggleRef.current.contains(e.target)) {
+        return;
+      }
+
+      const outsideDesktop = !desktopSearchRef.current || !desktopSearchRef.current.contains(e.target);
+      const outsideMobile = !mobileSearchRef.current || !mobileSearchRef.current.contains(e.target);
+
+      if (outsideDesktop && outsideMobile) {
+        setIsSearchFocused(false);
+        setSearchOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsSearchFocused(false);
+        setSearchOpen(false);
+      }
+    };
+
+    const handleScroll = () => {
+      if (searchOpen) {
+        setSearchOpen(false);
         setIsSearchFocused(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScroll);
     };
-  }, []);
+  }, [searchOpen]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -202,43 +227,61 @@ export default function Header() {
 
             {/* Mobile search toggle */}
             <button
+              ref={mobileToggleRef}
               onClick={() => {
-                setSearchOpen(!searchOpen);
-                if (!searchOpen) {
+                const nextState = !searchOpen;
+                setSearchOpen(nextState);
+                if (nextState) {
                   setIsSearchFocused(true);
+                } else {
+                  setSearchQuery('');
+                  setIsSearchFocused(false);
                 }
               }}
               className="md:hidden p-2 rounded-lg text-navy-600 hover:bg-navy-50 transition-colors cursor-pointer"
-              title="Buscar notícias"
+              title={searchOpen ? "Fechar busca" : "Buscar notícias"}
             >
-              <Search size={20} />
+              {searchOpen ? <X size={20} className="text-navy-800" /> : <Search size={20} />}
             </button>
           </div>
         </div>
 
         {/* Mobile search bar com resultados em tempo real */}
         {searchOpen && (
-          <div ref={mobileSearchRef} className="md:hidden px-4 pb-3">
-            <form onSubmit={handleSearch} className="relative">
-              <input
-                type="text"
-                placeholder="Buscar notícias..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                autoFocus
-                className="w-full pl-10 pr-9 py-2.5 rounded-full border border-navy-200 bg-navy-50 text-sm text-navy-700 placeholder-navy-400 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:border-transparent focus:bg-white"
-              />
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy-400 pointer-events-none" />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-400 hover:text-navy-600 p-1 cursor-pointer"
-                  title="Limpar busca"
-                >
-                  <X size={16} />
-                </button>
-              )}
+          <div ref={mobileSearchRef} className="md:hidden px-4 pb-3 animate-in fade-in slide-in-from-top-2 duration-200">
+            <form onSubmit={handleSearch} className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Buscar notícias..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  autoFocus
+                  className="w-full pl-10 pr-9 py-2.5 rounded-full border border-navy-200 bg-navy-50 text-[16px] md:text-sm text-navy-700 placeholder-navy-400 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:border-transparent focus:bg-white"
+                />
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-navy-400 pointer-events-none" />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-400 hover:text-navy-600 p-1 cursor-pointer"
+                    title="Limpar busca"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchOpen(false);
+                  setSearchQuery('');
+                  setIsSearchFocused(false);
+                }}
+                className="text-xs font-bold text-accent-600 hover:text-accent-700 px-2 py-2 shrink-0 cursor-pointer transition-colors"
+              >
+                Cancelar
+              </button>
             </form>
 
             {/* Mobile Instant Results Dropdown */}

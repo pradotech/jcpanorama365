@@ -5,6 +5,7 @@ import { uploadImage } from '../../lib/storage';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import { normalizeText } from '../../lib/stringUtils';
 
 const emptyColumnist = {
   name: '',
@@ -27,11 +28,14 @@ export default function AdminColumnists() {
   const [imagePreview, setImagePreview] = useState('');
   const fileInputRef = useRef(null);
 
-  const filteredColumnists = columnists.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (c.role && c.role.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (c.bio && c.bio.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredColumnists = columnists.filter(c => {
+    const q = normalizeText(searchQuery);
+    return (
+      normalizeText(c.name).includes(q) ||
+      (c.role && normalizeText(c.role).includes(q)) ||
+      (c.bio && normalizeText(c.bio).includes(q))
+    );
+  });
 
   const openNewModal = () => {
     setEditingColumnist(null);

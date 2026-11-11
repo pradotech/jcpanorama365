@@ -8,6 +8,7 @@ import categories from '../../data/categories';
 import CategoryBadge from '../../components/ui/CategoryBadge';
 import Modal from '../../components/ui/Modal';
 import Button from '../../components/ui/Button';
+import { normalizeText } from '../../lib/stringUtils';
 
 export default function AdminNews() {
   const { getAllNews, deleteNews, updateNews } = useNews();
@@ -20,7 +21,7 @@ export default function AdminNews() {
 
   const filteredNews = allNews.filter(item => {
     const matchSearch = !searchQuery ||
-      item.title.toLowerCase().includes(searchQuery.toLowerCase());
+      normalizeText(item.title).includes(normalizeText(searchQuery));
     const matchCategory = !filterCategory || item.category === filterCategory;
     const matchStatus = !filterStatus || item.status === filterStatus;
     return matchSearch && matchCategory && matchStatus;

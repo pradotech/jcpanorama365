@@ -4,6 +4,7 @@ import { Users, Search, ArrowLeft, BookOpen, ArrowRight, Sparkles, Feather, News
 import { useColumnists } from '../hooks/useColumnists';
 import { useNews } from '../hooks/useNews';
 import NewsCard from '../components/news/NewsCard';
+import { normalizeText } from '../lib/stringUtils';
 
 export default function ColumnistsPage() {
   const { columnists, loading } = useColumnists();
@@ -17,11 +18,11 @@ export default function ColumnistsPage() {
     : allArticles.filter(item => String(item.columnist_id) === String(selectedColumnistId));
 
   const filteredColumnists = columnists.filter(col => {
-    const q = searchTerm.toLowerCase();
+    const q = normalizeText(searchTerm);
     return (
-      col.name.toLowerCase().includes(q) ||
-      (col.role && col.role.toLowerCase().includes(q)) ||
-      (col.bio && col.bio.toLowerCase().includes(q))
+      normalizeText(col.name).includes(q) ||
+      (col.role && normalizeText(col.role).includes(q)) ||
+      (col.bio && normalizeText(col.bio).includes(q))
     );
   });
 
