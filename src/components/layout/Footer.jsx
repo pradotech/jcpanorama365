@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Globe, Camera, MessageCircle, Play } from 'lucide-react';
+import { Mail, Phone, MapPin, Globe, Camera, MessageCircle, Play, Smartphone } from 'lucide-react';
+import { usePWA } from '../../context/PWAContext';
 import categories from '../../data/categories';
 
 export default function Footer() {
+  const { canInstall, installApp } = usePWA();
   return (
     <footer className="bg-navy-950 text-white">
       {/* Main footer */}
@@ -106,10 +108,23 @@ export default function Footer() {
 
       {/* Bottom bar */}
       <div className="border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-navy-500">
             © {new Date().getFullYear()} JC Panorama 365. Todos os direitos reservados.
           </p>
+
+          {canInstall && (
+            <button
+              type="button"
+              onClick={installApp}
+              className="inline-flex items-center gap-1.5 text-xs text-navy-300 hover:text-white transition-colors cursor-pointer py-1.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10"
+              title="Criar atalho na tela inicial"
+            >
+              <Smartphone size={13} className="text-accent-400 shrink-0" />
+              <span>Instalar app na tela inicial</span>
+            </button>
+          )}
+
           <p className="text-xs text-navy-500">
             Informação que conecta. Todos os dias.
           </p>

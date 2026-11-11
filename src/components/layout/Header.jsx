@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, X, Feather, ArrowRight, Newspaper } from 'lucide-react';
+import { Search, X, Feather, ArrowRight, Newspaper, Smartphone } from 'lucide-react';
 import { useNews } from '../../hooks/useNews';
+import { usePWA } from '../../context/PWAContext';
 import CategoryBadge from '../ui/CategoryBadge';
 import { formatTimeAgo } from '../../lib/dateUtils';
 import categories from '../../data/categories';
@@ -16,6 +17,7 @@ export default function Header() {
   const mobileToggleRef = useRef(null);
 
   const { searchNews } = useNews();
+  const { canInstall, installApp } = usePWA();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -224,6 +226,19 @@ export default function Header() {
                 </div>
               )}
             </div>
+
+            {/* Botão PWA: Criar atalho na tela inicial */}
+            {canInstall && (
+              <button
+                type="button"
+                onClick={installApp}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-accent-50 hover:bg-accent-100 text-accent-700 text-xs font-bold border border-accent-200/80 transition-all cursor-pointer active:scale-95 shadow-2xs"
+                title="Criar atalho na tela inicial (App)"
+              >
+                <Smartphone size={14} className="text-accent-600 shrink-0" />
+                <span className="text-[11px] sm:text-xs">App</span>
+              </button>
+            )}
 
             {/* Mobile search toggle */}
             <button

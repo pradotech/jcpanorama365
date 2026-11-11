@@ -18,13 +18,13 @@ export default function NewsList({
   return (
     <section>
       {showHeader && category && (
-        <div className="flex items-center justify-between mb-4 pb-2 border-b border-navy-100/70">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-navy-100/70 select-none">
+          <div className="flex items-center gap-2.5 pointer-events-none select-none">
             <span
               className="w-1.5 h-6 rounded-full"
               style={{ backgroundColor: category.color }}
             />
-            <h2 className="text-lg md:text-xl font-bold text-navy-950 tracking-tight">
+            <h2 className="text-lg md:text-xl font-bold text-navy-950 tracking-tight select-none">
               {category.name}
             </h2>
           </div>

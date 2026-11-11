@@ -88,15 +88,15 @@ export default function HomePage() {
         {/* Seção Últimas Notícias com Mercado Financeiro ao lado */}
         {latestNews.length > 0 && (
           <section className="mb-12">
-            <div className="flex items-center justify-between mb-5 pb-3 border-b border-navy-100">
-              <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-between mb-5 pb-3 border-b border-navy-100 select-none">
+              <div className="flex items-center gap-2.5 pointer-events-none select-none">
                 <span className="w-1.5 h-6 rounded-full bg-red-600" />
-                <h2 className="text-lg md:text-xl font-bold text-navy-950 tracking-tight flex items-center gap-2">
+                <h2 className="text-lg md:text-xl font-bold text-navy-950 tracking-tight flex items-center gap-2 select-none">
                   <Clock size={20} className="text-red-600" />
                   Últimas Notícias
                 </h2>
               </div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-navy-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-navy-400 pointer-events-none select-none">
                 Mais Recentes
               </span>
             </div>

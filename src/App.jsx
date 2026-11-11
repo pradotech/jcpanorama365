@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { NewsProvider } from './context/NewsContext';
 import { AuthProvider } from './context/AuthContext';
 import { ColumnistsProvider } from './context/ColumnistsContext';
+import { PWAProvider } from './context/PWAContext';
 
 import Layout from './components/layout/Layout';
 import ScrollToTop from './components/layout/ScrollToTop';
@@ -27,7 +28,8 @@ function App() {
     <AuthProvider>
       <ColumnistsProvider>
         <NewsProvider>
-          <BrowserRouter>
+          <PWAProvider>
+            <BrowserRouter>
             <ScrollToTop />
             <Routes>
               {/* Public routes */}
@@ -60,6 +62,7 @@ function App() {
               </Route>
             </Routes>
           </BrowserRouter>
+          </PWAProvider>
         </NewsProvider>
       </ColumnistsProvider>
     </AuthProvider>
