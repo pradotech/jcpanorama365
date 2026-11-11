@@ -233,24 +233,24 @@ export default function ArticlePage() {
     window.open(waUrl, '_blank', 'noopener,noreferrer');
   };
 
-  // Facebook: texto enxuto "Leia aqui: URL"
+  // Facebook: Título da notícia + "Leia aqui: URL"
   const handleShareFacebook = () => {
     if (!article) return;
     const url = window.location.href;
-    const quote = `Leia aqui: ${url}`;
+    const quote = `${article.title}\n\nLeia aqui: ${url}`;
     const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(quote)}`;
     window.open(fbUrl, '_blank', 'noopener,noreferrer,width=600,height=500');
   };
 
-  // Instagram: copia texto enxuto "Leia aqui: URL" e notifica o usuário
+  // Instagram: copia "Título + Leia aqui: URL" e notifica o usuário
   const handleShareInstagram = async () => {
     if (!article) return;
     const url = window.location.href;
-    const instaText = `Leia aqui: ${url}`;
+    const instaText = `${article.title}\n\nLeia aqui: ${url}`;
     const success = await copyToClipboard(instaText);
     if (success) {
       setCopiedType('insta');
-      showToast('Texto "Leia aqui..." copiado para o Instagram!');
+      showToast('Título e link copiados para o Instagram!');
       setTimeout(() => setCopiedType(''), 3000);
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         setTimeout(() => {
@@ -469,7 +469,7 @@ export default function ArticlePage() {
               <button
                 type="button"
                 onClick={handleShareFacebook}
-                title="Compartilhar no Facebook (Leia aqui)"
+                title="Compartilhar no Facebook"
                 className="w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
               >
                 <FacebookIcon className="w-4 h-4 text-[#1877F2] shrink-0" />
@@ -480,7 +480,7 @@ export default function ArticlePage() {
               <button
                 type="button"
                 onClick={handleShareInstagram}
-                title="Copiar texto enxuto 'Leia aqui...' para Instagram"
+                title="Copiar título e link para Instagram"
                 className={`w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${
                   copiedType === 'insta'
                     ? 'bg-purple-100 text-purple-800 border-purple-300 ring-2 ring-purple-100'
@@ -647,7 +647,7 @@ export default function ArticlePage() {
               type="button"
               onClick={handleShareInstagram}
               className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] hover:opacity-95 text-white text-xs sm:text-sm font-bold transition-all shadow-xs hover:shadow-md cursor-pointer active:scale-95"
-              title="Copiar texto enxuto 'Leia aqui...' para Instagram"
+              title="Copiar título e link para Instagram"
             >
               <InstagramIcon className="w-4 h-4 fill-white shrink-0" />
               <span>{copiedType === 'insta' ? 'Copiado!' : 'Instagram'}</span>
