@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Clock, User, ArrowLeft, ArrowRight, Share2, Check, ChevronLeft, ChevronRight, Link2, Loader2, FileText } from 'lucide-react';
+import { Clock, User, ArrowLeft, ArrowRight, Share2, Check, ChevronLeft, ChevronRight, Loader2, FileText, ChevronDown, Link2 } from 'lucide-react';
 import { useNews } from '../hooks/useNews';
 import { supabase } from '../lib/supabase';
 import { getCategoryById } from '../data/categories';
@@ -29,8 +29,129 @@ function FacebookIcon({ className = "w-4 h-4" }) {
 function InstagramIcon({ className = "w-4 h-4" }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.449-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
     </svg>
+  );
+}
+
+function InstagramDropdownMenu({
+  isOpen,
+  onClose,
+  onSelectStories,
+  onSelectFeed,
+  onCopyCaption,
+  sharingInsta,
+  copiedType,
+  align = 'right',
+  direction = 'down',
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className={`absolute ${align === 'right' ? 'right-0' : 'left-0 sm:left-auto sm:right-0'} ${
+        direction === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'
+      } w-72 sm:w-80 max-w-[calc(100vw-24px)] bg-white rounded-2xl shadow-2xl border border-navy-100 p-2 z-50 text-left`}
+      style={{ filter: 'drop-shadow(0 10px 25px rgba(0,0,0,0.12))' }}
+    >
+      <div className="px-3 py-2 border-b border-navy-50 flex items-center justify-between">
+        <span className="text-[11px] font-extrabold uppercase tracking-wider text-navy-400">
+          Instagram
+        </span>
+        <span className="text-[10px] text-navy-400 font-medium">Escolha uma opção</span>
+      </div>
+
+      <div className="py-1 space-y-1">
+        {/* Opção 1: Stories */}
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onSelectStories();
+          }}
+          disabled={!!sharingInsta}
+          className="w-full text-left p-2.5 rounded-xl hover:bg-purple-50/80 active:bg-purple-100 transition-colors flex items-start gap-3 group cursor-pointer"
+        >
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#FD1D1D] to-[#833AB4] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+            <Link2 size={16} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-bold text-navy-950 group-hover:text-purple-700 leading-tight">
+                Stories (com Link 🔗)
+              </span>
+              {copiedType === 'stories' && (
+                <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded-md shrink-0">
+                  Copiado!
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-navy-500 leading-snug mt-0.5">
+              Envia a foto e copia o link da matéria para colar na figurinha de Link dos Stories.
+            </p>
+          </div>
+        </button>
+
+        {/* Opção 2: Feed / Post */}
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onSelectFeed();
+          }}
+          disabled={!!sharingInsta}
+          className="w-full text-left p-2.5 rounded-xl hover:bg-pink-50/80 active:bg-pink-100 transition-colors flex items-start gap-3 group cursor-pointer"
+        >
+          <div className="w-8 h-8 rounded-xl bg-[#E1306C] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+            <InstagramIcon className="w-4 h-4 fill-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-bold text-navy-950 group-hover:text-pink-700 leading-tight">
+                Post no Feed (com Legenda)
+              </span>
+              {copiedType === 'insta' && (
+                <span className="text-[10px] font-bold text-pink-700 bg-pink-100 px-1.5 py-0.5 rounded-md shrink-0">
+                  Copiado!
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-navy-500 leading-snug mt-0.5">
+              Envia a foto e copia o texto completo (título, subtítulo e link) para colar na legenda.
+            </p>
+          </div>
+        </button>
+
+        {/* Opção 3: Apenas Copiar Legenda */}
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onCopyCaption();
+          }}
+          className="w-full text-left p-2.5 rounded-xl hover:bg-navy-50 active:bg-navy-100 transition-colors flex items-start gap-3 group cursor-pointer border-t border-navy-50"
+        >
+          <div className="w-8 h-8 rounded-xl bg-navy-100 text-navy-700 flex items-center justify-center shrink-0 mt-0.5">
+            {copiedType === 'caption' ? <Check size={16} className="text-emerald-600" /> : <FileText size={16} />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-xs font-bold text-navy-950 group-hover:text-accent-600 leading-tight">
+                Apenas Copiar Legenda
+              </span>
+              {copiedType === 'caption' && (
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-md shrink-0">
+                  Copiada!
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-navy-500 leading-snug mt-0.5">
+              Copia a legenda para a área de transferência sem abrir o app do Instagram.
+            </p>
+          </div>
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -48,7 +169,26 @@ export default function ArticlePage() {
   const [sharingInsta, setSharingInsta] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isGalleryHovered, setIsGalleryHovered] = useState(false);
+  const [activeInstaDropdown, setActiveInstaDropdown] = useState(null); // 'top' | 'bottom' | null
+  const topInstaMenuRef = useRef(null);
+  const bottomInstaMenuRef = useRef(null);
   const recordedArticleIdRef = useRef(null);
+
+  // Fecha o dropdown do Instagram ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        topInstaMenuRef.current &&
+        !topInstaMenuRef.current.contains(event.target) &&
+        bottomInstaMenuRef.current &&
+        !bottomInstaMenuRef.current.contains(event.target)
+      ) {
+        setActiveInstaDropdown(null);
+      }
+    };
+    document.addEventListener('pointerdown', handleClickOutside);
+    return () => document.removeEventListener('pointerdown', handleClickOutside);
+  }, []);
 
   // Busca a notícia diretamente pelo slug caso o usuário abra direto pelo WhatsApp/link
   useEffect(() => {
@@ -255,13 +395,17 @@ export default function ArticlePage() {
     window.open(fbUrl, '_blank', 'noopener,noreferrer,width=600,height=500');
   };
 
-  // Monta a legenda oficial normalizada (título + subtítulo + link limpo)
+  // Monta a legenda oficial normalizada completa (Título + Subtítulo + Chamada com Link)
   const getArticleCaption = () => {
     if (!article) return '';
     const url = typeof window !== 'undefined' ? window.location.href : '';
     const cleanTitle = cleanPlainText(article.title);
     const cleanSubtitle = cleanPlainText(article.subtitle || '');
-    return `${cleanTitle}${cleanSubtitle ? `\n\n${cleanSubtitle}` : ''}\n\nLeia a matéria completa: ${url}`;
+
+    if (cleanSubtitle) {
+      return `${cleanTitle}\n\n${cleanSubtitle}\n\nLeia a matéria completa: ${url}`;
+    }
+    return `${cleanTitle}\n\nLeia a matéria completa: ${url}`;
   };
 
   // Copiar legenda limpa para colar no Instagram
@@ -278,20 +422,28 @@ export default function ArticlePage() {
     }
   };
 
-  // Instagram: Abre a tela nativa para escolher o tipo de postagem (Stories, Feed, etc.) com a foto e legenda limpa
-  const handleShareInstagram = async () => {
+  // Instagram: Abre a tela nativa de compartilhamento
+  // mode = 'stories' -> copia o LINK direto para colar na figurinha de Link (🔗) dos Stories
+  // mode = 'feed'    -> copia a LEGENDA completa (título + subtítulo + link) para o Feed/Post
+  const handleShareInstagram = async (mode = 'stories') => {
     if (!article) return;
-    const instaText = getArticleCaption();
+    const url = typeof window !== 'undefined' ? window.location.href : '';
     const cleanTitle = cleanPlainText(article.title);
     const imageUrl = (images && images.length > 0 ? images[0] : null) || article.image_url;
 
-    // Copia previamente a legenda para a área de transferência
-    await copyToClipboard(instaText);
+    // Se for stories, copia o link limpo para a figurinha 🔗. Se for feed, copia a legenda completa.
+    const textToCopy = mode === 'stories' ? url : getArticleCaption();
+    const successToast =
+      mode === 'stories'
+        ? 'Foto enviada e link copiado! Cole na figurinha de Link (🔗) dos Stories.'
+        : 'Foto enviada e legenda copiada! Cole na legenda do Feed.';
+
+    await copyToClipboard(textToCopy);
 
     // Se houver imagem e suporte nativo ao envio de arquivos via Web Share API (celular)
     if (imageUrl && typeof navigator !== 'undefined' && navigator.share) {
       try {
-        setSharingInsta(true);
+        setSharingInsta(mode);
         const response = await fetch(imageUrl, { mode: 'cors' });
         if (response.ok) {
           const blob = await response.blob();
@@ -303,10 +455,10 @@ export default function ArticlePage() {
             await navigator.share({
               files: [file],
               title: cleanTitle,
-              text: instaText,
+              text: textToCopy,
             });
-            setCopiedType('insta');
-            showToast('Foto enviada! Cole a legenda no campo.');
+            setCopiedType(mode === 'stories' ? 'stories' : 'insta');
+            showToast(successToast);
             setTimeout(() => setCopiedType(''), 3000);
             return;
           }
@@ -320,8 +472,8 @@ export default function ArticlePage() {
     }
 
     // Fallback caso não suporte compartilhamento direto de arquivo
-    setCopiedType('insta');
-    showToast('Legenda copiada para colar no Instagram!');
+    setCopiedType(mode === 'stories' ? 'stories' : 'insta');
+    showToast(successToast);
     setTimeout(() => setCopiedType(''), 3000);
 
     if (typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
@@ -331,19 +483,6 @@ export default function ArticlePage() {
     }
   };
 
-  // Copiar link direto da notícia
-  const handleCopyLink = async () => {
-    if (!article) return;
-    const url = window.location.href;
-    const success = await copyToClipboard(url);
-    if (success) {
-      setCopiedType('link');
-      showToast('Link da notícia copiado para a área de transferência!');
-      setTimeout(() => setCopiedType(''), 3000);
-    } else {
-      alert('Não foi possível copiar o link.');
-    }
-  };
 
   if (!article) {
     if (isDirectLoading || newsLoading) {
@@ -545,72 +684,48 @@ export default function ArticlePage() {
                 <span className="hidden sm:inline">Facebook</span>
               </button>
 
-              {/* Instagram */}
-              <button
-                type="button"
-                onClick={handleShareInstagram}
-                disabled={sharingInsta}
-                title="Compartilhar no Instagram"
-                className={`w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${copiedType === 'insta'
-                    ? 'bg-purple-100 text-purple-800 border-purple-300 ring-2 ring-purple-100'
-                    : 'bg-pink-50 hover:bg-pink-100 text-pink-700 border-pink-200/80'
+              {/* Instagram Dropdown */}
+              <div className="relative inline-flex items-center justify-center shrink-0" ref={topInstaMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setActiveInstaDropdown(prev => prev === 'top' ? null : 'top')}
+                  title="Opções de compartilhamento no Instagram"
+                  className={`w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs leading-none ${
+                    activeInstaDropdown === 'top'
+                      ? 'bg-gradient-to-r from-purple-100 to-pink-100 text-purple-900 border-purple-300 ring-2 ring-purple-100'
+                      : copiedType === 'stories' || copiedType === 'insta' || copiedType === 'caption'
+                      ? 'bg-purple-100 text-purple-800 border-purple-300'
+                      : 'bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 text-purple-700 border-purple-200/80'
                   } ${sharingInsta ? 'opacity-70 pointer-events-none' : ''}`}
-              >
-                {sharingInsta ? (
-                  <Loader2 size={14} className="animate-spin text-pink-600 shrink-0" />
-                ) : (
-                  <InstagramIcon className="w-4 h-4 text-[#E4405F] shrink-0" />
-                )}
-                <span className="hidden sm:inline">
-                  {sharingInsta ? 'Carregando...' : (copiedType === 'insta' ? 'Copiado!' : 'Instagram')}
-                </span>
-              </button>
+                >
+                  {sharingInsta ? (
+                    <Loader2 size={14} className="animate-spin text-purple-600 shrink-0" />
+                  ) : (
+                    <InstagramIcon className="w-4 h-4 text-[#E4405F] shrink-0" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {sharingInsta ? 'Enviando...' : 'Instagram'}
+                  </span>
+                  <ChevronDown
+                    size={13}
+                    className={`hidden sm:inline text-purple-600 transition-transform duration-200 ${
+                      activeInstaDropdown === 'top' ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
 
-              {/* Copiar Link */}
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                title="Copiar link da notícia"
-                className={`w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${copiedType === 'link'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                    : 'bg-navy-50 hover:bg-navy-100 text-navy-700 border-navy-200/80'
-                  }`}
-              >
-                {copiedType === 'link' ? (
-                  <>
-                    <Check size={14} className="text-emerald-600 shrink-0" />
-                    <span className="hidden sm:inline text-emerald-700">Copiado!</span>
-                  </>
-                ) : (
-                  <>
-                    <Link2 size={14} className="text-navy-500 shrink-0" />
-                    <span className="hidden sm:inline">Link</span>
-                  </>
-                )}
-              </button>
-
-              {/* Copiar Legenda */}
-              <button
-                type="button"
-                onClick={handleCopyCaption}
-                title="Copiar legenda para colar no Instagram"
-                className={`w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${copiedType === 'caption'
-                    ? 'bg-purple-100 text-purple-800 border-purple-300'
-                    : 'bg-purple-50/60 hover:bg-purple-100 text-purple-700 border-purple-200/80'
-                  }`}
-              >
-                {copiedType === 'caption' ? (
-                  <>
-                    <Check size={14} className="text-purple-600 shrink-0" />
-                    <span className="hidden sm:inline text-purple-700">Copiada!</span>
-                  </>
-                ) : (
-                  <>
-                    <FileText size={14} className="text-purple-600 shrink-0" />
-                    <span className="hidden sm:inline">Legenda</span>
-                  </>
-                )}
-              </button>
+                <InstagramDropdownMenu
+                  isOpen={activeInstaDropdown === 'top'}
+                  onClose={() => setActiveInstaDropdown(null)}
+                  onSelectStories={() => handleShareInstagram('stories')}
+                  onSelectFeed={() => handleShareInstagram('feed')}
+                  onCopyCaption={handleCopyCaption}
+                  sharingInsta={sharingInsta}
+                  copiedType={copiedType}
+                  align="right"
+                  direction="down"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -681,10 +796,11 @@ export default function ArticlePage() {
                     key={idx}
                     type="button"
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`relative w-16 h-14 sm:w-20 sm:h-16 rounded-lg overflow-hidden shrink-0 transition-all border-2 cursor-pointer ${idx === activeImageIndex
+                    className={`relative w-16 h-14 sm:w-20 sm:h-16 rounded-lg overflow-hidden shrink-0 transition-all border-2 cursor-pointer ${
+                      idx === activeImageIndex
                         ? 'border-accent-500 ring-2 ring-accent-200 opacity-100 scale-102'
                         : 'border-transparent opacity-60 hover:opacity-100'
-                      }`}
+                    }`}
                   >
                     <img src={img} alt={`Miniatura ${idx + 1}`} className="w-full h-full object-cover" />
                   </button>
@@ -738,64 +854,40 @@ export default function ArticlePage() {
               <span>Facebook</span>
             </button>
 
-            {/* Instagram */}
-            <button
-              type="button"
-              onClick={handleShareInstagram}
-              disabled={sharingInsta}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] hover:opacity-95 text-white text-xs sm:text-sm font-bold transition-all shadow-xs hover:shadow-md cursor-pointer active:scale-95 disabled:opacity-75"
-              title="Compartilhar no Instagram"
-            >
-              {sharingInsta ? (
-                <Loader2 size={16} className="animate-spin text-white shrink-0" />
-              ) : (
-                <InstagramIcon className="w-4 h-4 fill-white shrink-0" />
-              )}
-              <span>{sharingInsta ? 'Carregando foto...' : (copiedType === 'insta' ? 'Copiado!' : 'Instagram')}</span>
-            </button>
+            {/* Instagram Dropdown */}
+            <div className="relative inline-flex items-center justify-center shrink-0" ref={bottomInstaMenuRef}>
+              <button
+                type="button"
+                onClick={() => setActiveInstaDropdown(prev => prev === 'bottom' ? null : 'bottom')}
+                className="flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] hover:opacity-95 text-white text-xs sm:text-sm font-bold transition-all shadow-xs hover:shadow-md cursor-pointer active:scale-95 leading-none"
+                title="Opções de compartilhamento no Instagram"
+              >
+                {sharingInsta ? (
+                  <Loader2 size={16} className="animate-spin text-white shrink-0" />
+                ) : (
+                  <InstagramIcon className="w-4 h-4 fill-white shrink-0" />
+                )}
+                <span>{sharingInsta ? 'Enviando...' : 'Instagram'}</span>
+                <ChevronDown
+                  size={14}
+                  className={`text-white transition-transform duration-200 ${
+                    activeInstaDropdown === 'bottom' ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
 
-            {/* Copiar Link */}
-            <button
-              type="button"
-              onClick={handleCopyLink}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-navy-100 hover:bg-navy-200 text-navy-800 text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95"
-              title="Copiar link da notícia"
-            >
-              {copiedType === 'link' ? (
-                <>
-                  <Check size={14} className="text-emerald-600 shrink-0" />
-                  <span className="text-emerald-700">Link copiado!</span>
-                </>
-              ) : (
-                <>
-                  <Link2 size={14} className="shrink-0" />
-                  <span>Copiar Link</span>
-                </>
-              )}
-            </button>
-
-            {/* Copiar Legenda */}
-            <button
-              type="button"
-              onClick={handleCopyCaption}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${copiedType === 'caption'
-                  ? 'bg-purple-100 text-purple-800 border border-purple-300'
-                  : 'bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80'
-                }`}
-              title="Copiar texto da legenda para colar no Instagram"
-            >
-              {copiedType === 'caption' ? (
-                <>
-                  <Check size={14} className="text-purple-600 shrink-0" />
-                  <span className="text-purple-700">Legenda copiada!</span>
-                </>
-              ) : (
-                <>
-                  <FileText size={14} className="shrink-0" />
-                  <span>Copiar Legenda</span>
-                </>
-              )}
-            </button>
+              <InstagramDropdownMenu
+                isOpen={activeInstaDropdown === 'bottom'}
+                onClose={() => setActiveInstaDropdown(null)}
+                onSelectStories={() => handleShareInstagram('stories')}
+                onSelectFeed={() => handleShareInstagram('feed')}
+                onCopyCaption={handleCopyCaption}
+                sharingInsta={sharingInsta}
+                copiedType={copiedType}
+                align="right"
+                direction="down"
+              />
+            </div>
           </div>
         </div>
 
