@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Clock, User, ArrowLeft, ArrowRight, Share2, Check, ChevronLeft, ChevronRight, Link2 } from 'lucide-react';
+import { Clock, User, ArrowLeft, ArrowRight, Share2, Check, ChevronLeft, ChevronRight, Link2, Loader2 } from 'lucide-react';
 import { useNews } from '../hooks/useNews';
 import { supabase } from '../lib/supabase';
 import { getCategoryById } from '../data/categories';
@@ -8,7 +8,6 @@ import CategoryBadge from '../components/ui/CategoryBadge';
 import NewsCard from '../components/news/NewsCard';
 import { recordNewsView } from '../services/analyticsService';
 import { getArticleImages } from '../lib/imageUtils';
-import InstagramShareModal from '../components/news/InstagramShareModal';
 
 function WhatsAppIcon({ className = "w-4 h-4" }) {
   return (
@@ -45,7 +44,7 @@ export default function ArticlePage() {
   const article = contextArticle || directArticle;
   const [copiedType, setCopiedType] = useState('');
   const [toastMessage, setToastMessage] = useState('');
-  const [showInstagramModal, setShowInstagramModal] = useState(false);
+  const [sharingInsta, setSharingInsta] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isGalleryHovered, setIsGalleryHovered] = useState(false);
   const recordedArticleIdRef = useRef(null);
@@ -248,10 +247,58 @@ export default function ArticlePage() {
     window.open(fbUrl, '_blank', 'noopener,noreferrer,width=600,height=500');
   };
 
-  // Instagram: abre o modal de compartilhamento inteligente (Stories com foto, link limpo para figurinha 🔗 e título para texto Aa)
-  const handleShareInstagram = () => {
+  // Instagram: Abre a tela nativa para escolher o tipo de postagem (Stories, Feed, etc.) com a foto e texto limpo que cola perfeitamente
+  const handleShareInstagram = async () => {
     if (!article) return;
-    setShowInstagramModal(true);
+    const url = window.location.href;
+    // Texto em formato padrão limpo (sem caracteres matemáticos que travavam a colagem no Instagram)
+    const instaText = `${article.title}\n\nLeia aqui: ${url}`;
+    const imageUrl = (images && images.length > 0 ? images[0] : null) || article.image_url;
+
+    // Copia o título e link previamente para a área de transferência
+    await copyToClipboard(instaText);
+
+    // Se houver imagem e suporte nativo ao envio de arquivos via Web Share API (celular)
+    if (imageUrl && typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        setSharingInsta(true);
+        const response = await fetch(imageUrl, { mode: 'cors' });
+        if (response.ok) {
+          const blob = await response.blob();
+          const mimeType = blob.type || 'image/jpeg';
+          const extension = mimeType.includes('png') ? 'png' : 'jpg';
+          const file = new File([blob], `noticia-jc.${extension}`, { type: mimeType });
+
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: article.title,
+              text: instaText,
+            });
+            setCopiedType('insta');
+            showToast('Foto e texto enviados para o Instagram!');
+            setTimeout(() => setCopiedType(''), 3000);
+            return;
+          }
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return; // Usuário cancelou a tela de compartilhamento
+        console.warn('Falha no envio de arquivo direto para Instagram, usando fallback:', err);
+      } finally {
+        setSharingInsta(false);
+      }
+    }
+
+    // Fallback caso não suporte compartilhamento direto de arquivo
+    setCopiedType('insta');
+    showToast('Título e link copiados para colar no Instagram!');
+    setTimeout(() => setCopiedType(''), 3000);
+
+    if (typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      setTimeout(() => {
+        window.location.href = 'instagram://app';
+      }, 500);
+    }
   };
 
   // Copiar link direto da notícia
@@ -472,11 +519,22 @@ export default function ArticlePage() {
               <button
                 type="button"
                 onClick={handleShareInstagram}
+                disabled={sharingInsta}
                 title="Compartilhar no Instagram"
-                className="w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs bg-pink-50 hover:bg-pink-100 text-pink-700 border-pink-200/80"
+                className={`w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${
+                  copiedType === 'insta'
+                    ? 'bg-purple-100 text-purple-800 border-purple-300 ring-2 ring-purple-100'
+                    : 'bg-pink-50 hover:bg-pink-100 text-pink-700 border-pink-200/80'
+                } ${sharingInsta ? 'opacity-70 pointer-events-none' : ''}`}
               >
-                <InstagramIcon className="w-4 h-4 text-[#E4405F] shrink-0" />
-                <span className="hidden sm:inline">Instagram</span>
+                {sharingInsta ? (
+                  <Loader2 size={14} className="animate-spin text-pink-600 shrink-0" />
+                ) : (
+                  <InstagramIcon className="w-4 h-4 text-[#E4405F] shrink-0" />
+                )}
+                <span className="hidden sm:inline">
+                  {sharingInsta ? 'Carregando...' : (copiedType === 'insta' ? 'Copiado!' : 'Instagram')}
+                </span>
               </button>
 
               {/* Copiar Link */}
@@ -634,11 +692,16 @@ export default function ArticlePage() {
             <button
               type="button"
               onClick={handleShareInstagram}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] hover:opacity-95 text-white text-xs sm:text-sm font-bold transition-all shadow-xs hover:shadow-md cursor-pointer active:scale-95"
+              disabled={sharingInsta}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F77737] hover:opacity-95 text-white text-xs sm:text-sm font-bold transition-all shadow-xs hover:shadow-md cursor-pointer active:scale-95 disabled:opacity-75"
               title="Compartilhar no Instagram"
             >
-              <InstagramIcon className="w-4 h-4 fill-white shrink-0" />
-              <span>Instagram</span>
+              {sharingInsta ? (
+                <Loader2 size={16} className="animate-spin text-white shrink-0" />
+              ) : (
+                <InstagramIcon className="w-4 h-4 fill-white shrink-0" />
+              )}
+              <span>{sharingInsta ? 'Carregando foto...' : (copiedType === 'insta' ? 'Copiado!' : 'Instagram')}</span>
             </button>
 
             {/* Copiar Link */}
@@ -777,16 +840,6 @@ export default function ArticlePage() {
           </div>
         </div>
       )}
-
-      {/* Modal de Compartilhamento no Instagram */}
-      <InstagramShareModal
-        isOpen={showInstagramModal}
-        onClose={() => setShowInstagramModal(false)}
-        article={article}
-        url={typeof window !== 'undefined' ? window.location.href : ''}
-        copyToClipboard={copyToClipboard}
-        showToast={showToast}
-      />
 
       {/* Toast de Feedback de Compartilhamento */}
       {toastMessage && (
