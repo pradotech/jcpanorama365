@@ -1,5 +1,5 @@
 // Service Worker para PWA (JC Panorama 365)
-const CACHE_NAME = 'jc-pwa-cache-v2';
+const CACHE_NAME = 'jc-pwa-cache-v3';
 
 self.addEventListener('install', () => {
   self.skipWaiting();

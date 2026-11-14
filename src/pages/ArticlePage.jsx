@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Clock, User, ArrowLeft, ArrowRight, Share2, Check, ChevronLeft, ChevronRight, Link2, Loader2 } from 'lucide-react';
+import { Clock, User, ArrowLeft, ArrowRight, Share2, Check, ChevronLeft, ChevronRight, Link2, Loader2, FileText } from 'lucide-react';
 import { useNews } from '../hooks/useNews';
 import { supabase } from '../lib/supabase';
 import { getCategoryById } from '../data/categories';
@@ -8,6 +8,7 @@ import CategoryBadge from '../components/ui/CategoryBadge';
 import NewsCard from '../components/news/NewsCard';
 import { recordNewsView } from '../services/analyticsService';
 import { getArticleImages } from '../lib/imageUtils';
+import { cleanPlainText } from '../lib/stringUtils';
 
 function WhatsAppIcon({ className = "w-4 h-4" }) {
   return (
@@ -213,15 +214,22 @@ export default function ArticlePage() {
     try {
       const textarea = document.createElement('textarea');
       textarea.value = text;
-      textarea.setAttribute('readonly', '');
       textarea.style.position = 'fixed';
-      textarea.style.left = '-9999px';
       textarea.style.top = '0';
+      textarea.style.left = '0';
+      textarea.style.width = '2em';
+      textarea.style.height = '2em';
+      textarea.style.padding = '0';
+      textarea.style.border = 'none';
+      textarea.style.outline = 'none';
+      textarea.style.boxShadow = 'none';
+      textarea.style.background = 'transparent';
+      textarea.style.opacity = '0.01';
       textarea.style.fontSize = '16px';
       document.body.appendChild(textarea);
       textarea.focus();
       textarea.select();
-      textarea.setSelectionRange(0, 99999);
+      textarea.setSelectionRange(0, text.length);
       const successful = document.execCommand('copy');
       document.body.removeChild(textarea);
       return successful;
@@ -247,15 +255,37 @@ export default function ArticlePage() {
     window.open(fbUrl, '_blank', 'noopener,noreferrer,width=600,height=500');
   };
 
-  // Instagram: Abre a tela nativa para escolher o tipo de postagem (Stories, Feed, etc.) com a foto e texto limpo que cola perfeitamente
+  // Monta a legenda oficial normalizada (título + subtítulo + link limpo)
+  const getArticleCaption = () => {
+    if (!article) return '';
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    const cleanTitle = cleanPlainText(article.title);
+    const cleanSubtitle = cleanPlainText(article.subtitle || '');
+    return `${cleanTitle}${cleanSubtitle ? `\n\n${cleanSubtitle}` : ''}\n\nLeia a matéria completa: ${url}`;
+  };
+
+  // Copiar legenda limpa para colar no Instagram
+  const handleCopyCaption = async () => {
+    if (!article) return;
+    const captionText = getArticleCaption();
+    const success = await copyToClipboard(captionText);
+    if (success) {
+      setCopiedType('caption');
+      showToast('Legenda copiada! Pronto para colar no Instagram.');
+      setTimeout(() => setCopiedType(''), 3000);
+    } else {
+      alert('Não foi possível copiar a legenda.');
+    }
+  };
+
+  // Instagram: Abre a tela nativa para escolher o tipo de postagem (Stories, Feed, etc.) com a foto e legenda limpa
   const handleShareInstagram = async () => {
     if (!article) return;
-    const url = window.location.href;
-    // Texto em formato padrão limpo (sem caracteres matemáticos que travavam a colagem no Instagram)
-    const instaText = `${article.title}\n\nLeia aqui: ${url}`;
+    const instaText = getArticleCaption();
+    const cleanTitle = cleanPlainText(article.title);
     const imageUrl = (images && images.length > 0 ? images[0] : null) || article.image_url;
 
-    // Copia o título e link previamente para a área de transferência
+    // Copia previamente a legenda para a área de transferência
     await copyToClipboard(instaText);
 
     // Se houver imagem e suporte nativo ao envio de arquivos via Web Share API (celular)
@@ -272,11 +302,11 @@ export default function ArticlePage() {
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
               files: [file],
-              title: article.title,
+              title: cleanTitle,
               text: instaText,
             });
             setCopiedType('insta');
-            showToast('Foto e texto enviados para o Instagram!');
+            showToast('Foto enviada! Cole a legenda no campo.');
             setTimeout(() => setCopiedType(''), 3000);
             return;
           }
@@ -291,7 +321,7 @@ export default function ArticlePage() {
 
     // Fallback caso não suporte compartilhamento direto de arquivo
     setCopiedType('insta');
-    showToast('Título e link copiados para colar no Instagram!');
+    showToast('Legenda copiada para colar no Instagram!');
     setTimeout(() => setCopiedType(''), 3000);
 
     if (typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
@@ -521,11 +551,10 @@ export default function ArticlePage() {
                 onClick={handleShareInstagram}
                 disabled={sharingInsta}
                 title="Compartilhar no Instagram"
-                className={`w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${
-                  copiedType === 'insta'
+                className={`w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${copiedType === 'insta'
                     ? 'bg-purple-100 text-purple-800 border-purple-300 ring-2 ring-purple-100'
                     : 'bg-pink-50 hover:bg-pink-100 text-pink-700 border-pink-200/80'
-                } ${sharingInsta ? 'opacity-70 pointer-events-none' : ''}`}
+                  } ${sharingInsta ? 'opacity-70 pointer-events-none' : ''}`}
               >
                 {sharingInsta ? (
                   <Loader2 size={14} className="animate-spin text-pink-600 shrink-0" />
@@ -542,11 +571,10 @@ export default function ArticlePage() {
                 type="button"
                 onClick={handleCopyLink}
                 title="Copiar link da notícia"
-                className={`w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${
-                  copiedType === 'link'
+                className={`w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${copiedType === 'link'
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
                     : 'bg-navy-50 hover:bg-navy-100 text-navy-700 border-navy-200/80'
-                }`}
+                  }`}
               >
                 {copiedType === 'link' ? (
                   <>
@@ -557,6 +585,29 @@ export default function ArticlePage() {
                   <>
                     <Link2 size={14} className="text-navy-500 shrink-0" />
                     <span className="hidden sm:inline">Link</span>
+                  </>
+                )}
+              </button>
+
+              {/* Copiar Legenda */}
+              <button
+                type="button"
+                onClick={handleCopyCaption}
+                title="Copiar legenda para colar no Instagram"
+                className={`w-8 h-8 sm:w-auto sm:px-3 sm:py-1.5 rounded-xl border flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${copiedType === 'caption'
+                    ? 'bg-purple-100 text-purple-800 border-purple-300'
+                    : 'bg-purple-50/60 hover:bg-purple-100 text-purple-700 border-purple-200/80'
+                  }`}
+              >
+                {copiedType === 'caption' ? (
+                  <>
+                    <Check size={14} className="text-purple-600 shrink-0" />
+                    <span className="hidden sm:inline text-purple-700">Copiada!</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText size={14} className="text-purple-600 shrink-0" />
+                    <span className="hidden sm:inline">Legenda</span>
                   </>
                 )}
               </button>
@@ -630,11 +681,10 @@ export default function ArticlePage() {
                     key={idx}
                     type="button"
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`relative w-16 h-14 sm:w-20 sm:h-16 rounded-lg overflow-hidden shrink-0 transition-all border-2 cursor-pointer ${
-                      idx === activeImageIndex
+                    className={`relative w-16 h-14 sm:w-20 sm:h-16 rounded-lg overflow-hidden shrink-0 transition-all border-2 cursor-pointer ${idx === activeImageIndex
                         ? 'border-accent-500 ring-2 ring-accent-200 opacity-100 scale-102'
                         : 'border-transparent opacity-60 hover:opacity-100'
-                    }`}
+                      }`}
                   >
                     <img src={img} alt={`Miniatura ${idx + 1}`} className="w-full h-full object-cover" />
                   </button>
@@ -720,6 +770,29 @@ export default function ArticlePage() {
                 <>
                   <Link2 size={14} className="shrink-0" />
                   <span>Copiar Link</span>
+                </>
+              )}
+            </button>
+
+            {/* Copiar Legenda */}
+            <button
+              type="button"
+              onClick={handleCopyCaption}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 shadow-xs ${copiedType === 'caption'
+                  ? 'bg-purple-100 text-purple-800 border border-purple-300'
+                  : 'bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80'
+                }`}
+              title="Copiar texto da legenda para colar no Instagram"
+            >
+              {copiedType === 'caption' ? (
+                <>
+                  <Check size={14} className="text-purple-600 shrink-0" />
+                  <span className="text-purple-700">Legenda copiada!</span>
+                </>
+              ) : (
+                <>
+                  <FileText size={14} className="shrink-0" />
+                  <span>Copiar Legenda</span>
                 </>
               )}
             </button>

@@ -43,3 +43,21 @@ export function toUnicodeBold(text) {
   return result;
 }
 
+/**
+ * Limpa texto removendo caracteres invisíveis, tags HTML e normalizando espaços
+ * para garantir compatibilidade total de colagem em apps móveis (Instagram, WhatsApp, Facebook).
+ */
+export function cleanPlainText(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\u00A0/g, ' ')
+    .replace(/[\u00AD\u200B-\u200D\uFEFF\u2060]/g, '')
+    .replace(/\r\n|\r/g, '\n')
+    .trim();
+}
+
