@@ -117,7 +117,7 @@ function InstagramDropdownMenu({
               )}
             </div>
             <p className="text-[11px] text-navy-500 leading-snug mt-0.5">
-              Envia a foto e copia o texto completo (título, subtítulo e link) para colar na legenda.
+              Envia a foto e copia a notícia completa com chamada para o link da bio.
             </p>
           </div>
         </button>
@@ -146,7 +146,7 @@ function InstagramDropdownMenu({
               )}
             </div>
             <p className="text-[11px] text-navy-500 leading-snug mt-0.5">
-              Copia a legenda para a área de transferência sem abrir o app do Instagram.
+              Copia a notícia completa para a área de transferência sem abrir o app.
             </p>
           </div>
         </button>
@@ -395,27 +395,82 @@ export default function ArticlePage() {
     window.open(fbUrl, '_blank', 'noopener,noreferrer,width=600,height=500');
   };
 
-  // Monta a legenda oficial normalizada completa (Título + Subtítulo + Chamada com Link)
-  const getArticleCaption = () => {
-    if (!article) return '';
-    const url = typeof window !== 'undefined' ? window.location.href : '';
-    const cleanTitle = cleanPlainText(article.title);
-    const cleanSubtitle = cleanPlainText(article.subtitle || '');
-
-    if (cleanSubtitle) {
-      return `${cleanTitle}\n\n${cleanSubtitle}\n\nLeia a matéria completa: ${url}`;
-    }
-    return `${cleanTitle}\n\nLeia a matéria completa: ${url}`;
+  // Converte HTML da notícia em texto limpo preservando quebras de parágrafos
+  const formatContentForCaption = (html) => {
+    if (!html) return '';
+    return html
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '• ')
+      .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '\n\n$1\n\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/\u00A0/g, ' ')
+      .replace(/[\u00AD\u200B-\u200D\uFEFF\u2060]/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
   };
 
-  // Copiar legenda limpa para colar no Instagram
+  // Monta a legenda oficial completa para o Instagram (Título + Notícia toda + Link da Bio)
+  const getArticleInstagramCaption = () => {
+    if (!article) return '';
+    const cleanTitle = cleanPlainText(article.title);
+    const cleanSubtitle = cleanPlainText(article.subtitle || '');
+    const cleanContent = formatContentForCaption(article.content);
+    const bioCallout = 'Veja mais notícias clicando no link da bio.';
+
+    const parts = [cleanTitle];
+    if (cleanSubtitle) {
+      parts.push(cleanSubtitle);
+    }
+    if (cleanContent) {
+      parts.push(cleanContent);
+    }
+    parts.push(bioCallout);
+
+    let caption = parts.join('\n\n');
+
+    // Instagram possui limite de 2.200 caracteres para legenda de Feed.
+    // Se exceder, corta com segurança no último ponto final e preserva a chamada da bio.
+    const MAX_INSTA_CHARS = 2180;
+    if (caption.length > MAX_INSTA_CHARS) {
+      const headerLen = cleanTitle.length + (cleanSubtitle ? cleanSubtitle.length + 2 : 0);
+      const footerLen = bioCallout.length + 4;
+      const availableForContent = MAX_INSTA_CHARS - headerLen - footerLen;
+
+      if (availableForContent > 80 && cleanContent) {
+        let trimmed = cleanContent.slice(0, availableForContent);
+        const lastSentenceEnd = Math.max(trimmed.lastIndexOf('.'), trimmed.lastIndexOf('!'), trimmed.lastIndexOf('?'));
+        if (lastSentenceEnd > availableForContent * 0.6) {
+          trimmed = trimmed.slice(0, lastSentenceEnd + 1);
+        } else {
+          trimmed = trimmed.trim() + '...';
+        }
+
+        const safeParts = [cleanTitle];
+        if (cleanSubtitle) safeParts.push(cleanSubtitle);
+        safeParts.push(trimmed);
+        safeParts.push(bioCallout);
+        caption = safeParts.join('\n\n');
+      }
+    }
+
+    return caption;
+  };
+
+  // Copiar legenda completa para colar no Instagram
   const handleCopyCaption = async () => {
     if (!article) return;
-    const captionText = getArticleCaption();
+    const captionText = getArticleInstagramCaption();
     const success = await copyToClipboard(captionText);
     if (success) {
       setCopiedType('caption');
-      showToast('Legenda copiada! Pronto para colar no Instagram.');
+      showToast('Notícia e legenda copiadas! Pronto para colar no Instagram.');
       setTimeout(() => setCopiedType(''), 3000);
     } else {
       alert('Não foi possível copiar a legenda.');
@@ -424,19 +479,19 @@ export default function ArticlePage() {
 
   // Instagram: Abre a tela nativa de compartilhamento
   // mode = 'stories' -> copia o LINK direto para colar na figurinha de Link (🔗) dos Stories
-  // mode = 'feed'    -> copia a LEGENDA completa (título + subtítulo + link) para o Feed/Post
+  // mode = 'feed'    -> copia a LEGENDA completa com texto da notícia toda + link da bio para o Feed/Post
   const handleShareInstagram = async (mode = 'stories') => {
     if (!article) return;
     const url = typeof window !== 'undefined' ? window.location.href : '';
     const cleanTitle = cleanPlainText(article.title);
     const imageUrl = (images && images.length > 0 ? images[0] : null) || article.image_url;
 
-    // Se for stories, copia o link limpo para a figurinha 🔗. Se for feed, copia a legenda completa.
-    const textToCopy = mode === 'stories' ? url : getArticleCaption();
+    // Se for stories, copia o link limpo para a figurinha 🔗. Se for feed, copia a notícia toda + bio.
+    const textToCopy = mode === 'stories' ? url : getArticleInstagramCaption();
     const successToast =
       mode === 'stories'
         ? 'Foto enviada e link copiado! Cole na figurinha de Link (🔗) dos Stories.'
-        : 'Foto enviada e legenda copiada! Cole na legenda do Feed.';
+        : 'Foto enviada e texto da notícia copiado! Cole na legenda do Feed.';
 
     await copyToClipboard(textToCopy);
 
