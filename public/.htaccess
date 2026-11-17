@@ -47,15 +47,22 @@ Options -Indexes
 </IfModule>
 
 # Controle de Cache:
-# - index.html NUNCA deve ficar preso em cache (para o usuário sempre receber novas versões do app)
+# - index.html e sw.js NUNCA devem ficar presos em cache (para o usuário sempre receber novas versões do app)
 # - Assets estáticos com hash (/assets/*) podem ficar em cache longo
 <IfModule mod_headers.c>
-  <Files "index.html">
+  <FilesMatch "\.(js|css|woff2|woff|ttf|png|jpg|jpeg|svg|webp|ico)$">
+    Header set Cache-Control "max-age=31536000, public, immutable"
+  </FilesMatch>
+
+  <FilesMatch "^(index\.html|sw\.js)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+  </FilesMatch>
+
+  <Files "sw.js">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires 0
   </Files>
-  <FilesMatch "\.(js|css|woff2|woff|ttf|png|jpg|jpeg|svg|webp|ico)$">
-    Header set Cache-Control "max-age=31536000, public, immutable"
-  </FilesMatch>
 </IfModule>

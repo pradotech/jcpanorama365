@@ -77,6 +77,29 @@ async function main() {
     console.log(`✅ CSS pós-processado para compatibilidade legada: ${file}`);
     console.log(`   Antes: ${content.length} bytes → Depois: ${unwrapped.length} bytes`);
   }
+
+  // Atualizar carimbo de versão no Service Worker (para invalidar cache no celular automaticamente)
+  await updateServiceWorker();
+}
+
+async function updateServiceWorker() {
+  const timestamp = Date.now();
+  const dateStr = new Date().toISOString();
+  const distSw = join(import.meta.dirname, '..', 'dist', 'sw.js');
+  const publicSw = join(import.meta.dirname, '..', 'public', 'sw.js');
+
+  for (const swPath of [publicSw, distSw]) {
+    try {
+      const content = await readFile(swPath, 'utf-8');
+      const updated = content
+        .replace(/const CACHE_NAME = ['"].*?['"];/, `const CACHE_NAME = 'jc-pwa-cache-${timestamp}';`)
+        .replace(/\/\/ BUILD_TIMESTAMP: .*/, `// BUILD_TIMESTAMP: ${dateStr}`);
+      await writeFile(swPath, updated, 'utf-8');
+    } catch {
+      // Ignora caso arquivo não exista
+    }
+  }
+  console.log(`✅ Service Worker carimbado com nova versão de build: ${timestamp}`);
 }
 
 main().catch(console.error);
