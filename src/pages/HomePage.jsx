@@ -28,8 +28,8 @@ export default function HomePage() {
   // Notícias destinadas à página inicial (filtradas por show_on_home e ordenadas por home_order/data)
   const homeNews = getHomeNews();
 
-  // Últimas notícias da home (até 12 cards, respeitando prioridade de posição e data)
-  const latestNews = homeNews.slice(0, 12);
+  // Últimas notícias da home (até 16 cards, respeitando prioridade de posição e data)
+  const latestNews = homeNews.slice(0, 16);
 
   // Artigos de colunistas da página inicial
   const columnistArticles = homeNews.filter(
