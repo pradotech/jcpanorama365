@@ -24,8 +24,10 @@ if ($isHome) {
     $title = 'JC Panorama 365 — Informação que conecta. Todos os dias.';
     $pageTitle = 'JC Panorama 365 — Informação que conecta. Todos os dias.';
     $description = 'JC Panorama 365 — Informação que conecta. Todos os dias. Portal de notícias com cobertura completa em Geral, Polícia, Política, Esportes, Economia, Brasil, Mundo e Variedades.';
-    $imageUrl = "{$siteUrl}/logo.png";
-    $canonicalUrl = "{$siteUrl}/";
+    $imageUrl = "{$siteUrl}/logo.jpg";
+    $requestedUri = $_SERVER['REQUEST_URI'] ?? '/';
+    $cleanUri = preg_replace('/^\/og\.php(\?.*)?$/', '$1', $requestedUri);
+    $canonicalUrl = rtrim($siteUrl, '/') . (!empty($cleanUri) ? $cleanUri : '/');
     $publishedTime = date('c');
     $authorName = 'Redação JC Panorama 365';
 
@@ -41,7 +43,7 @@ if ($isHome) {
             'url' => $siteUrl,
             'logo' => [
                 '@type' => 'ImageObject',
-                'url' => "{$siteUrl}/logo.png",
+                'url' => "{$siteUrl}/logo.jpg",
             ],
         ],
     ];
@@ -131,7 +133,7 @@ if ($isHome) {
         }
     }
 
-    $imageUrl = "{$siteUrl}/logo.png";
+    $imageUrl = "{$siteUrl}/logo.jpg";
     if (!empty($rawImage)) {
         if (strpos($rawImage, 'http://') === 0 || strpos($rawImage, 'https://') === 0) {
             $imageUrl = $rawImage;
@@ -163,7 +165,7 @@ if ($isHome) {
             'url' => $siteUrl,
             'logo' => [
                 '@type' => 'ImageObject',
-                'url' => "{$siteUrl}/logo.png",
+                'url' => "{$siteUrl}/logo.jpg",
             ],
         ],
         'mainEntityOfPage' => [
