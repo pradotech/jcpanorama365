@@ -16,138 +16,163 @@ $slug = isset($_GET['slug']) ? trim($_GET['slug']) : '';
 $slug = strtok($slug, '?');
 $slug = trim($slug, '/');
 
-if (empty($slug)) {
-    header("Location: {$siteUrl}/", true, 302);
-    exit;
-}
-
+$isHome = empty($slug) || $slug === 'home';
 $article = null;
+$ogType = $isHome ? 'website' : 'article';
 
-// Consulta a matéria no Supabase via REST API
-$endpoint = "{$supabaseUrl}/rest/v1/news?slug=eq." . urlencode($slug) . "&select=*";
+if ($isHome) {
+    $title = 'JC Panorama 365 — Informação que conecta. Todos os dias.';
+    $pageTitle = 'JC Panorama 365 — Informação que conecta. Todos os dias.';
+    $description = 'JC Panorama 365 — Informação que conecta. Todos os dias. Portal de notícias com cobertura completa em Geral, Polícia, Política, Esportes, Economia, Brasil, Mundo e Variedades.';
+    $imageUrl = "{$siteUrl}/logo.png";
+    $canonicalUrl = "{$siteUrl}/";
+    $publishedTime = date('c');
+    $authorName = 'Redação JC Panorama 365';
 
-$headers = [
-    "apikey: {$supabaseKey}",
-    "Authorization: Bearer {$supabaseKey}",
-    "Accept: application/json"
-];
-
-if (function_exists('curl_init')) {
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $endpoint);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 6);
-    // Na HostGator, desativar checagem estrita de SSL para evitar falha de CA desatualizada
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($httpCode === 200 && !empty($response)) {
-        $data = json_decode($response, true);
-        if (is_array($data) && count($data) > 0) {
-            $article = $data[0];
-        }
-    }
-} else {
-    $context = stream_context_create([
-        'http' => [
-            'method' => 'GET',
-            'header' => implode("\r\n", $headers) . "\r\n",
-            'timeout' => 6,
-        ],
-        'ssl' => [
-            'verify_peer' => false,
-            'verify_peer_name' => false,
-        ]
-    ]);
-    $response = @file_get_contents($endpoint, false, $context);
-    if (!empty($response)) {
-        $data = json_decode($response, true);
-        if (is_array($data) && count($data) > 0) {
-            $article = $data[0];
-        }
-    }
-}
-
-// Extração dos dados da matéria (ou fallback seguro)
-$title = !empty($article['title']) ? $article['title'] : 'JC Panorama 365';
-$pageTitle = "{$title} | JC Panorama 365";
-$description = !empty($article['subtitle']) ? $article['subtitle'] : '';
-
-if (empty($description) && !empty($article['content'])) {
-    $cleanContent = strip_tags($article['content']);
-    $description = mb_substr($cleanContent, 0, 160, 'UTF-8');
-}
-if (empty($description)) {
-    $description = 'Notícias de Jundiaí e Região em tempo real no JC Panorama 365.';
-}
-
-// Extração e normalização da imagem da matéria (compatível com array, JSON string ou URL direta)
-$rawImage = '';
-
-if (!empty($article['images'])) {
-    $imgs = is_array($article['images']) ? $article['images'] : json_decode($article['images'], true);
-    if (is_array($imgs) && !empty($imgs[0])) {
-        $rawImage = $imgs[0];
-    }
-}
-
-if (empty($rawImage) && !empty($article['image_url'])) {
-    $trimmed = trim($article['image_url']);
-    if (strpos($trimmed, '[') === 0) {
-        $parsed = json_decode($trimmed, true);
-        if (is_array($parsed) && !empty($parsed[0])) {
-            $rawImage = $parsed[0];
-        }
-    }
-    if (empty($rawImage)) {
-        $rawImage = $trimmed;
-    }
-}
-
-$imageUrl = "{$siteUrl}/logo-full.jpg";
-if (!empty($rawImage)) {
-    if (strpos($rawImage, 'http://') === 0 || strpos($rawImage, 'https://') === 0) {
-        $imageUrl = $rawImage;
-    } else {
-        $imageUrl = rtrim($siteUrl, '/') . '/' . ltrim($rawImage, '/');
-    }
-}
-
-$canonicalUrl = "{$siteUrl}/noticia/" . urlencode($slug);
-$publishedTime = !empty($article['published_at']) ? $article['published_at'] : (!empty($article['created_at']) ? $article['created_at'] : date('c'));
-$authorName = !empty($article['columnist_name']) ? $article['columnist_name'] : (!empty($article['author']) ? $article['author'] : 'Redação JC Panorama 365');
-
-// Schema.org NewsArticle em JSON-LD
-$schemaData = [
-    '@context' => 'https://schema.org',
-    '@type' => 'NewsArticle',
-    'headline' => $title,
-    'description' => $description,
-    'image' => [$imageUrl],
-    'datePublished' => $publishedTime,
-    'dateModified' => !empty($article['updated_at']) ? $article['updated_at'] : $publishedTime,
-    'author' => [
-        '@type' => 'Person',
-        'name' => $authorName,
-    ],
-    'publisher' => [
-        '@type' => 'NewsMediaOrganization',
+    $schemaData = [
+        '@context' => 'https://schema.org',
+        '@type' => 'WebSite',
         'name' => 'JC Panorama 365',
         'url' => $siteUrl,
-        'logo' => [
-            '@type' => 'ImageObject',
-            'url' => "{$siteUrl}/logo-full.jpg",
+        'description' => $description,
+        'publisher' => [
+            '@type' => 'NewsMediaOrganization',
+            'name' => 'JC Panorama 365',
+            'url' => $siteUrl,
+            'logo' => [
+                '@type' => 'ImageObject',
+                'url' => "{$siteUrl}/logo.png",
+            ],
         ],
-    ],
-    'mainEntityOfPage' => [
-        '@type' => 'WebPage',
-        '@id' => $canonicalUrl,
-    ],
-];
+    ];
+} else {
+    // Consulta a matéria no Supabase via REST API
+    $endpoint = "{$supabaseUrl}/rest/v1/news?slug=eq." . urlencode($slug) . "&select=*";
+
+    $headers = [
+        "apikey: {$supabaseKey}",
+        "Authorization: Bearer {$supabaseKey}",
+        "Accept: application/json"
+    ];
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $endpoint);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+        // Na HostGator, desativar checagem estrita de SSL para evitar falha de CA desatualizada
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode === 200 && !empty($response)) {
+            $data = json_decode($response, true);
+            if (is_array($data) && count($data) > 0) {
+                $article = $data[0];
+            }
+        }
+    } else {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => implode("\r\n", $headers) . "\r\n",
+                'timeout' => 6,
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+            ]
+        ]);
+        $response = @file_get_contents($endpoint, false, $context);
+        if (!empty($response)) {
+            $data = json_decode($response, true);
+            if (is_array($data) && count($data) > 0) {
+                $article = $data[0];
+            }
+        }
+    }
+
+    // Extração dos dados da matéria (ou fallback seguro)
+    $title = !empty($article['title']) ? $article['title'] : 'JC Panorama 365';
+    $pageTitle = "{$title} | JC Panorama 365";
+    $description = !empty($article['subtitle']) ? $article['subtitle'] : '';
+
+    if (empty($description) && !empty($article['content'])) {
+        $cleanContent = strip_tags($article['content']);
+        $description = mb_substr($cleanContent, 0, 160, 'UTF-8');
+    }
+    if (empty($description)) {
+        $description = 'Notícias de Jundiaí e Região em tempo real no JC Panorama 365.';
+    }
+
+    // Extração e normalização da imagem da matéria (compatível com array, JSON string ou URL direta)
+    $rawImage = '';
+
+    if (!empty($article['images'])) {
+        $imgs = is_array($article['images']) ? $article['images'] : json_decode($article['images'], true);
+        if (is_array($imgs) && !empty($imgs[0])) {
+            $rawImage = $imgs[0];
+        }
+    }
+
+    if (empty($rawImage) && !empty($article['image_url'])) {
+        $trimmed = trim($article['image_url']);
+        if (strpos($trimmed, '[') === 0) {
+            $parsed = json_decode($trimmed, true);
+            if (is_array($parsed) && !empty($parsed[0])) {
+                $rawImage = $parsed[0];
+            }
+        }
+        if (empty($rawImage)) {
+            $rawImage = $trimmed;
+        }
+    }
+
+    $imageUrl = "{$siteUrl}/logo.png";
+    if (!empty($rawImage)) {
+        if (strpos($rawImage, 'http://') === 0 || strpos($rawImage, 'https://') === 0) {
+            $imageUrl = $rawImage;
+        } else {
+            $imageUrl = rtrim($siteUrl, '/') . '/' . ltrim($rawImage, '/');
+        }
+    }
+
+    $canonicalUrl = "{$siteUrl}/noticia/" . urlencode($slug);
+    $publishedTime = !empty($article['published_at']) ? $article['published_at'] : (!empty($article['created_at']) ? $article['created_at'] : date('c'));
+    $authorName = !empty($article['columnist_name']) ? $article['columnist_name'] : (!empty($article['author']) ? $article['author'] : 'Redação JC Panorama 365');
+
+    // Schema.org NewsArticle em JSON-LD
+    $schemaData = [
+        '@context' => 'https://schema.org',
+        '@type' => 'NewsArticle',
+        'headline' => $title,
+        'description' => $description,
+        'image' => [$imageUrl],
+        'datePublished' => $publishedTime,
+        'dateModified' => !empty($article['updated_at']) ? $article['updated_at'] : $publishedTime,
+        'author' => [
+            '@type' => 'Person',
+            'name' => $authorName,
+        ],
+        'publisher' => [
+            '@type' => 'NewsMediaOrganization',
+            'name' => 'JC Panorama 365',
+            'url' => $siteUrl,
+            'logo' => [
+                '@type' => 'ImageObject',
+                'url' => "{$siteUrl}/logo.png",
+            ],
+        ],
+        'mainEntityOfPage' => [
+            '@type' => 'WebPage',
+            'name' => $title,
+            '@id' => $canonicalUrl,
+        ],
+    ];
+}
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: public, max-age=300, s-maxage=600');
@@ -161,7 +186,7 @@ header('Cache-Control: public, max-age=300, s-maxage=600');
   <meta name="google-site-verification" content="tcHSM_-VUwLLq_1-2afhEkpP-InydMX2LqyEXD8W1lk">
 
   <!-- Open Graph / Facebook / WhatsApp -->
-  <meta property="og:type" content="article">
+  <meta property="og:type" content="<?php echo $ogType; ?>">
   <meta property="og:site_name" content="JC Panorama 365">
   <meta property="og:title" content="<?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>">
   <meta property="og:description" content="<?php echo htmlspecialchars($description, ENT_QUOTES, 'UTF-8'); ?>">
@@ -176,14 +201,17 @@ header('Cache-Control: public, max-age=300, s-maxage=600');
     }
   ?>
   <meta property="og:image:type" content="<?php echo $imageMime; ?>">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
+  <meta property="og:image:width" content="<?php echo $isHome ? '600' : '1200'; ?>">
+  <meta property="og:image:height" content="<?php echo $isHome ? '600' : '630'; ?>">
   <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta property="og:locale" content="pt_BR">
+  <?php if (!$isHome): ?>
   <meta property="article:published_time" content="<?php echo htmlspecialchars($publishedTime, ENT_QUOTES, 'UTF-8'); ?>">
   <meta property="article:author" content="<?php echo htmlspecialchars($authorName, ENT_QUOTES, 'UTF-8'); ?>">
+  <?php endif; ?>
 
   <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:card" content="<?php echo $isHome ? 'summary' : 'summary_large_image'; ?>">
   <meta name="twitter:title" content="<?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>">
   <meta name="twitter:description" content="<?php echo htmlspecialchars($description, ENT_QUOTES, 'UTF-8'); ?>">
   <meta name="twitter:image" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
@@ -191,22 +219,22 @@ header('Cache-Control: public, max-age=300, s-maxage=600');
   <!-- Canonical -->
   <link rel="canonical" href="<?php echo htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
 
-  <!-- Schema.org NewsArticle -->
+  <!-- Schema.org -->
   <script type="application/ld+json">
     <?php echo json_encode($schemaData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT); ?>
   </script>
 
   <!-- Redirecionamento instantâneo se um usuário humano acessar essa URL -->
-  <meta http-equiv="refresh" content="0;url=/noticia/<?php echo urlencode($slug); ?>">
+  <meta http-equiv="refresh" content="0;url=<?php echo $isHome ? '/' : '/noticia/' . urlencode($slug); ?>">
   <script>
-    window.location.replace('/noticia/<?php echo urlencode($slug); ?>');
+    window.location.replace('<?php echo $isHome ? '/' : '/noticia/' . urlencode($slug); ?>');
   </script>
 </head>
 <body style="font-family: system-ui, -apple-system, sans-serif; padding: 40px; text-align: center; color: #0F1A2E; background: #f8fafc;">
-  <p style="font-size: 14px; color: #64748b;">Carregando matéria no JC Panorama 365...</p>
+  <p style="font-size: 14px; color: #64748b;">Carregando JC Panorama 365...</p>
   <h1 style="font-size: 20px; font-weight: bold; margin-top: 12px;"><?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?></h1>
   <p style="margin-top: 24px;">
-    <a href="/noticia/<?php echo urlencode($slug); ?>" style="color: #1E56A0; text-decoration: underline;">
+    <a href="<?php echo $isHome ? '/' : '/noticia/' . urlencode($slug); ?>" style="color: #1E56A0; text-decoration: underline;">
       Clique aqui se não for redirecionado automaticamente
     </a>
   </p>

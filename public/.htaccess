@@ -11,6 +11,10 @@
   RewriteRule ^sitemap\.xml$ sitemap.php [L]
 
   # 3. Interceptar Robôs e Crawlers de Redes Sociais (WhatsApp, Facebook, Twitter, Telegram, LinkedIn, etc.)
+  # Se for um bot acessando a página inicial / domínio raiz, encaminha para og.php?slug=home
+  RewriteCond %{HTTP_USER_AGENT} (facebookexternalhit|WhatsApp|Facebot|Twitterbot|TelegramBot|LinkedInBot|Pinterest|Slackbot|Discordbot|Googlebot|bingbot) [NC]
+  RewriteRule ^$ og.php?slug=home [L,QSA]
+
   # Se for um bot acessando a rota de uma notícia (/noticia/:slug), encaminha para o og.php
   RewriteCond %{HTTP_USER_AGENT} (facebookexternalhit|WhatsApp|Facebot|Twitterbot|TelegramBot|LinkedInBot|Pinterest|Slackbot|Discordbot|Googlebot|bingbot) [NC]
   RewriteRule ^noticia/(.*)$ og.php?slug=$1 [L,QSA]
