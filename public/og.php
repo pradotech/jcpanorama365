@@ -201,8 +201,8 @@ header('Cache-Control: public, max-age=300, s-maxage=600');
     }
   ?>
   <meta property="og:image:type" content="<?php echo $imageMime; ?>">
-  <meta property="og:image:width" content="<?php echo $isHome ? '600' : '1200'; ?>">
-  <meta property="og:image:height" content="<?php echo $isHome ? '600' : '630'; ?>">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
   <meta property="og:locale" content="pt_BR">
   <?php if (!$isHome): ?>
@@ -211,7 +211,7 @@ header('Cache-Control: public, max-age=300, s-maxage=600');
   <?php endif; ?>
 
   <!-- Twitter Card -->
-  <meta name="twitter:card" content="<?php echo $isHome ? 'summary' : 'summary_large_image'; ?>">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="<?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>">
   <meta name="twitter:description" content="<?php echo htmlspecialchars($description, ENT_QUOTES, 'UTF-8'); ?>">
   <meta name="twitter:image" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
