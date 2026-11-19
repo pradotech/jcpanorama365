@@ -179,64 +179,73 @@ header('Cache-Control: public, max-age=300, s-maxage=600');
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR" prefix="og: https://ogp.me/ns#">
-<head>
-  <meta charset="UTF-8">
-  <title><?php echo htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
-  <meta name="description" content="">
-  <meta name="google-site-verification" content="tcHSM_-VUwLLq_1-2afhEkpP-InydMX2LqyEXD8W1lk">
 
-  <!-- Open Graph / Facebook / WhatsApp -->
-  <meta property="og:type" content="<?php echo $ogType; ?>">
-  <meta property="og:site_name" content="JC Panorama 365">
-  <meta property="og:title" content="<?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>">
-  <meta property="og:description" content="<?php echo htmlspecialchars($description, ENT_QUOTES, 'UTF-8'); ?>">
-  <meta property="og:image" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
-  <meta property="og:image:secure_url" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
-  <?php
+<head>
+    <meta charset="UTF-8">
+    <title><?php echo htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8'); ?></title>
+    <meta name="description" content="">
+    <meta name="google-site-verification" content="tcHSM_-VUwLLq_1-2afhEkpP-InydMX2LqyEXD8W1lk">
+
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="<?php echo $ogType; ?>">
+    <meta property="og:site_name" content="JC Panorama 365">
+    <meta property="og:title" content="<?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:description" content="<?php echo htmlspecialchars($description, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:image" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:image:secure_url" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php
     $imageMime = 'image/jpeg';
     if (preg_match('/\.png(\?|$)/i', $imageUrl)) {
         $imageMime = 'image/png';
     } elseif (preg_match('/\.webp(\?|$)/i', $imageUrl)) {
         $imageMime = 'image/webp';
     }
-  ?>
-  <meta property="og:image:type" content="<?php echo $imageMime; ?>">
-  <meta property="og:image:width" content="<?php echo $isHome ? '600' : '1200'; ?>">
-  <meta property="og:image:height" content="<?php echo $isHome ? '600' : '630'; ?>">
-  <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
-  <meta property="og:locale" content="pt_BR">
-  <?php if (!$isHome): ?>
-  <meta property="article:published_time" content="<?php echo htmlspecialchars($publishedTime, ENT_QUOTES, 'UTF-8'); ?>">
-  <meta property="article:author" content="<?php echo htmlspecialchars($authorName, ENT_QUOTES, 'UTF-8'); ?>">
-  <?php endif; ?>
+    ?>
+    <meta property="og:image:type" content="<?php echo $imageMime; ?>">
+    <meta property="og:image:width" content="<?php echo $isHome ? '600' : '1200'; ?>">
+    <meta property="og:image:height" content="<?php echo $isHome ? '600' : '630'; ?>">
+    <meta property="og:url" content="<?php echo htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:locale" content="pt_BR">
+    <?php if (!$isHome): ?>
+        <meta property="article:published_time"
+            content="<?php echo htmlspecialchars($publishedTime, ENT_QUOTES, 'UTF-8'); ?>">
+        <meta property="article:author" content="<?php echo htmlspecialchars($authorName, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
 
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="<?php echo $isHome ? 'summary' : 'summary_large_image'; ?>">
-  <meta name="twitter:title" content="<?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>">
-  <meta name="twitter:description" content="<?php echo htmlspecialchars($description, ENT_QUOTES, 'UTF-8'); ?>">
-  <meta name="twitter:image" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="<?php echo $isHome ? 'summary' : 'summary_large_image'; ?>">
+    <meta name="twitter:title" content="<?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="twitter:description" content="<?php echo htmlspecialchars($description, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="twitter:image" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
 
-  <!-- Canonical -->
-  <link rel="canonical" href="<?php echo htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <!-- Canonical -->
+    <link rel="canonical" href="<?php echo htmlspecialchars($canonicalUrl, ENT_QUOTES, 'UTF-8'); ?>">
 
-  <!-- Schema.org -->
-  <script type="application/ld+json">
+    <!-- Schema.org -->
+    <script type="application/ld+json">
     <?php echo json_encode($schemaData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT); ?>
   </script>
 
-  <!-- Redirecionamento instantâneo se um usuário humano acessar essa URL -->
-  <meta http-equiv="refresh" content="0;url=<?php echo $isHome ? '/' : '/noticia/' . urlencode($slug); ?>">
-  <script>
-    window.location.replace('<?php echo $isHome ? '/' : '/noticia/' . urlencode($slug); ?>');
-  </script>
+    <?php if (!$isHome): ?>
+        <!-- Redirecionamento instantâneo se um usuário humano acessar essa URL de notícia -->
+        <meta http-equiv="refresh" content="0;url=/noticia/<?php echo urlencode($slug); ?>">
+        <script>
+            window.location.replace('/noticia/<?php echo urlencode($slug); ?>');
+        </script>
+    <?php endif; ?>
 </head>
-<body style="font-family: system-ui, -apple-system, sans-serif; padding: 40px; text-align: center; color: #0F1A2E; background: #f8fafc;">
-  <p style="font-size: 14px; color: #64748b;">Carregando JC Panorama 365...</p>
-  <h1 style="font-size: 20px; font-weight: bold; margin-top: 12px;"><?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?></h1>
-  <p style="margin-top: 24px;">
-    <a href="<?php echo $isHome ? '/' : '/noticia/' . urlencode($slug); ?>" style="color: #1E56A0; text-decoration: underline;">
-      Clique aqui se não for redirecionado automaticamente
-    </a>
-  </p>
+
+<body
+    style="font-family: system-ui, -apple-system, sans-serif; padding: 40px; text-align: center; color: #0F1A2E; background: #f8fafc;">
+    <p style="font-size: 14px; color: #64748b;">Carregando JC Panorama 365...</p>
+    <h1 style="font-size: 20px; font-weight: bold; margin-top: 12px;">
+        <?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?></h1>
+    <p style="margin-top: 24px;">
+        <a href="<?php echo $isHome ? '/' : '/noticia/' . urlencode($slug); ?>"
+            style="color: #1E56A0; text-decoration: underline;">
+            Clique aqui se não for redirecionado automaticamente
+        </a>
+    </p>
 </body>
+
 </html>
