@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
-  PlusCircle, Search, Edit3, Trash2, Eye, EyeOff, Star, StarOff, Home
+  PlusCircle, Search, Edit3, Trash2, Eye, EyeOff, Star, StarOff, Home, ThumbsUp, ThumbsDown
 } from 'lucide-react';
 import { useNews } from '../../hooks/useNews';
 import categories from '../../data/categories';
@@ -11,10 +11,14 @@ import Button from '../../components/ui/Button';
 import { normalizeText } from '../../lib/stringUtils';
 
 export default function AdminNews() {
+  const [searchParams] = useSearchParams();
+  const initialReaction = searchParams.get('reacao') || '';
+
   const { getAllNews, deleteNews, updateNews } = useNews();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterReaction, setFilterReaction] = useState(initialReaction);
   const [deleteModal, setDeleteModal] = useState(null);
 
   const allNews = getAllNews();
@@ -24,7 +28,11 @@ export default function AdminNews() {
       normalizeText(item.title).includes(normalizeText(searchQuery));
     const matchCategory = !filterCategory || item.category === filterCategory;
     const matchStatus = !filterStatus || item.status === filterStatus;
-    return matchSearch && matchCategory && matchStatus;
+    const matchReaction = !filterReaction ||
+      (filterReaction === 'likes' && (item.likes_count || 0) > 0) ||
+      (filterReaction === 'dislikes' && (item.dislikes_count || 0) > 0) ||
+      (filterReaction === 'any' && ((item.likes_count || 0) > 0 || (item.dislikes_count || 0) > 0));
+    return matchSearch && matchCategory && matchStatus && matchReaction;
   });
 
   const handleDelete = async (id) => {
@@ -110,6 +118,16 @@ export default function AdminNews() {
             <option value="published">Publicado</option>
             <option value="draft">Rascunho</option>
           </select>
+          <select
+            value={filterReaction}
+            onChange={(e) => setFilterReaction(e.target.value)}
+            className="px-4 py-2.5 rounded-lg border border-navy-200 text-sm text-navy-700 focus:outline-none focus:ring-2 focus:ring-accent-400 bg-white cursor-pointer"
+          >
+            <option value="">Todas as reações</option>
+            <option value="likes">Com curtidas (👍)</option>
+            <option value="dislikes">Com descurtidas (👎)</option>
+            <option value="any">Com qualquer avaliação</option>
+          </select>
         </div>
       </div>
 
@@ -133,6 +151,9 @@ export default function AdminNews() {
                 </th>
                 <th className="text-left text-xs font-semibold text-navy-500 uppercase tracking-wider px-4 py-3">
                   Data
+                </th>
+                <th className="text-center text-xs font-semibold text-navy-500 uppercase tracking-wider px-4 py-3">
+                  Reações
                 </th>
                 <th className="text-center text-xs font-semibold text-navy-500 uppercase tracking-wider px-4 py-3">
                   Início
@@ -181,6 +202,24 @@ export default function AdminNews() {
                     {item.published_at
                       ? new Date(item.published_at).toLocaleDateString('pt-BR')
                       : '—'}
+                  </td>
+                  <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                    <div className="inline-flex items-center gap-1.5 text-xs">
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-100"
+                        title={`${item.likes_count || 0} curtidas`}
+                      >
+                        <ThumbsUp size={11} className="fill-blue-500 text-blue-600" />
+                        {item.likes_count || 0}
+                      </span>
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 font-bold border border-rose-100"
+                        title={`${item.dislikes_count || 0} descurtidas`}
+                      >
+                        <ThumbsDown size={11} className="fill-rose-500 text-rose-600" />
+                        {item.dislikes_count || 0}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-4 py-3.5 text-center">
                     <button

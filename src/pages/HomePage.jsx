@@ -1,17 +1,28 @@
+import { useState, useEffect, Fragment } from 'react';
 import { useNews } from '../hooks/useNews';
 import categories from '../data/categories';
 import BreakingNews from '../components/news/BreakingNews';
 import FeaturedNews from '../components/news/FeaturedNews';
 import NewsList from '../components/news/NewsList';
 import NewsCard from '../components/news/NewsCard';
+import AdCard from '../components/news/AdCard';
 import Sidebar from '../components/layout/Sidebar';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import ColumnistsSection from '../components/news/ColumnistsSection';
 import MarketOverview from '../components/market/MarketOverview';
+import { getAds } from '../services/adService';
 import { Clock } from 'lucide-react';
 
 export default function HomePage() {
   const { getFeaturedNews, getHomeNews, getNewsByCategory, loading } = useNews();
+  const [ads, setAds] = useState([]);
+
+  useEffect(() => {
+    getAds().then(data => setAds(data || []));
+  }, []);
+
+  const ad1 = ads.find(a => a.id === 'ad_home_1');
+  const ad2 = ads.find(a => a.id === 'ad_home_2');
 
   if (loading) {
     return (
@@ -114,8 +125,18 @@ export default function HomePage() {
               {/* Coluna das Notícias: No mobile fica após as cotações (order-2), no desktop fica à esquerda (order-1) */}
               <div className="lg:col-span-2 order-2 lg:order-1">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {latestNews.map(article => (
-                    <NewsCard key={article.id} article={article} variant="compact" />
+                  {latestNews.map((article, index) => (
+                    <Fragment key={article.id}>
+                      <NewsCard article={article} variant="compact" />
+                      {/* Anúncio 1: após a 3ª notícia (index 2) */}
+                      {index === 2 && ad1?.is_active && Boolean(ad1?.image_url) && (
+                        <AdCard imageUrl={ad1.image_url} alt="Anúncio 1" />
+                      )}
+                      {/* Anúncio 2: após mais três notícias (index 5) */}
+                      {index === 5 && ad2?.is_active && Boolean(ad2?.image_url) && (
+                        <AdCard imageUrl={ad2.image_url} alt="Anúncio 2" />
+                      )}
+                    </Fragment>
                   ))}
                 </div>
               </div>

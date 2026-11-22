@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, PlusCircle, LogOut,
-  Menu, X, ChevronRight, ExternalLink, Newspaper, Users
+  Menu, X, ChevronRight, ExternalLink, Newspaper, Users, Megaphone
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -12,6 +12,7 @@ const adminMenu = [
   { icon: PlusCircle, label: 'Nova Notícia', path: '/admin/noticias/nova' },
   { icon: Users, label: 'Colunistas', path: '/admin/colunistas' },
   { icon: Newspaper, label: 'Edição do Dia', path: '/admin/edicoes' },
+  { icon: Megaphone, label: 'Anúncios', path: '/admin/anuncios' },
 ];
 
 export default function AdminLayout() {

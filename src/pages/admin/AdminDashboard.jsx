@@ -2,22 +2,34 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FileText, Eye, PenLine, Clock, TrendingUp, PlusCircle,
-  MousePointerClick, Calendar, BarChart2, RefreshCw, Award, ArrowUpRight, Flame
+  MousePointerClick, Calendar, BarChart2, RefreshCw, Award, ArrowUpRight, Flame, ThumbsUp, ThumbsDown,
+  Search, Edit3
 } from 'lucide-react';
 import { useNews } from '../../hooks/useNews';
 import categories from '../../data/categories';
 import CategoryBadge from '../../components/ui/CategoryBadge';
+import Modal from '../../components/ui/Modal';
 import {
   getNewsViewsByDate,
   getDailyViewsHistory,
   getTotalViewsCount,
   getLocalDateString
 } from '../../services/analyticsService';
+import { getAdminReactionsStats } from '../../services/reactionService';
 
 export default function AdminDashboard() {
   const { getStats, getAllNews, getNewsByCategory } = useNews();
   const stats = getStats();
-  const recentNews = getAllNews().slice(0, 8);
+  const allNewsList = getAllNews();
+  const recentNews = allNewsList.slice(0, 8);
+
+  const newsMap = useMemo(() => {
+    const map = new Map();
+    allNewsList.forEach(n => {
+      map.set(n.id, n);
+    });
+    return map;
+  }, [allNewsList]);
 
   // Data de hoje e ontem no fuso oficial de Brasília (virando estritamente às 00:00)
   const todayStr = useMemo(() => getLocalDateString(new Date()), []);
@@ -31,20 +43,56 @@ export default function AdminDashboard() {
   const [dailyRanking, setDailyRanking] = useState([]);
   const [historyViews, setHistoryViews] = useState([]);
   const [totalAllTime, setTotalAllTime] = useState(0);
+  const [reactionsStats, setReactionsStats] = useState({ totalLikes: 0, totalDislikes: 0 });
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
+
+  // Modal de Detalhamento de Reações (Likes e Dislikes)
+  const [reactionModalOpen, setReactionModalOpen] = useState(false);
+  const [reactionModalTab, setReactionModalTab] = useState('likes'); // 'likes' | 'dislikes' | 'all'
+  const [reactionModalSearch, setReactionModalSearch] = useState('');
+
+  // Notícias avaliadas filtradas para o Modal
+  const evaluatedNews = useMemo(() => {
+    return allNewsList.filter(item => (item.likes_count || 0) > 0 || (item.dislikes_count || 0) > 0);
+  }, [allNewsList]);
+
+  const filteredModalNews = useMemo(() => {
+    let list = [...allNewsList];
+    if (reactionModalTab === 'likes') {
+      list = list.filter(item => (item.likes_count || 0) > 0);
+      list.sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0));
+    } else if (reactionModalTab === 'dislikes') {
+      list = list.filter(item => (item.dislikes_count || 0) > 0);
+      list.sort((a, b) => (b.dislikes_count || 0) - (a.dislikes_count || 0));
+    } else {
+      list = list.filter(item => (item.likes_count || 0) > 0 || (item.dislikes_count || 0) > 0);
+      list.sort((a, b) => ((b.likes_count || 0) + (b.dislikes_count || 0)) - ((a.likes_count || 0) + (a.dislikes_count || 0)));
+    }
+
+    if (reactionModalSearch) {
+      const q = reactionModalSearch.toLowerCase();
+      list = list.filter(item => (item.title || '').toLowerCase().includes(q));
+    }
+
+    return list;
+  }, [allNewsList, reactionModalTab, reactionModalSearch]);
 
   // Carregar dados de analytics
   const loadAnalytics = useCallback(async (date) => {
     setLoadingAnalytics(true);
     try {
-      const [ranking, history, allTime] = await Promise.all([
+      const [ranking, history, allTime, reactions] = await Promise.all([
         getNewsViewsByDate(date),
         getDailyViewsHistory(14),
-        getTotalViewsCount()
+        getTotalViewsCount(),
+        getAdminReactionsStats()
       ]);
       setDailyRanking(ranking);
       setHistoryViews(history);
       setTotalAllTime(allTime);
+      if (reactions) {
+        setReactionsStats(reactions);
+      }
     } catch (err) {
       console.error('Erro ao carregar métricas:', err);
     } finally {
@@ -78,6 +126,12 @@ export default function AdminDashboard() {
 
   const isToday = selectedDate === todayStr;
   const isYesterday = selectedDate === yesterdayStr;
+
+  // Métricas de reações e engajamento
+  const totalReactions = (reactionsStats.totalLikes || 0) + (reactionsStats.totalDislikes || 0);
+  const approvalRate = totalReactions > 0
+    ? Math.round((reactionsStats.totalLikes / totalReactions) * 100)
+    : null;
 
   const statCards = [
     {
@@ -123,7 +177,7 @@ export default function AdminDashboard() {
         </Link>
       </div>
 
-      {/* Top Stats Cards */}
+      {/* Top Stats Cards - 4 colunas com espaçamento generoso */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((card) => {
           const Icon = card.icon;
@@ -135,15 +189,130 @@ export default function AdminDashboard() {
               <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center text-white shrink-0 shadow-sm`}>
                 <Icon size={22} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-2xl font-bold text-navy-900">
                   {typeof card.value === 'number' ? card.value.toLocaleString('pt-BR') : card.value}
                 </p>
-                <p className="text-xs text-navy-500 font-medium">{card.label}</p>
+                <p className="text-xs text-navy-500 font-medium truncate">{card.label}</p>
               </div>
             </div>
           );
         })}
+      </div>
+
+      {/* Seção Exclusiva: Avaliações dos Leitores (Likes e Dislikes) */}
+      <div className="bg-white rounded-xl shadow-card p-5 sm:p-6 border border-navy-100/70">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-navy-100/70">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
+              <ThumbsUp size={18} />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-navy-900">
+                Avaliação das Matérias pelos Leitores
+              </h2>
+              <p className="text-xs text-navy-500 mt-0.5">
+                Métricas de curtidas e descurtidas (clique nos cards para ver as notícias)
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+            <span className="text-[11px] font-semibold text-navy-500 bg-navy-50 px-3 py-1 rounded-full border border-navy-100">
+              {totalReactions > 0 ? `${totalReactions.toLocaleString('pt-BR')} avaliações registradas` : 'Aguardando primeiras avaliações'}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setReactionModalTab('all');
+                setReactionModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1 text-xs font-bold text-accent-600 hover:text-accent-700 bg-accent-50 hover:bg-accent-100 px-3 py-1 rounded-full transition-colors cursor-pointer"
+            >
+              <span>Ver todas</span>
+              <ArrowUpRight size={13} />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Curtidas */}
+          <div
+            onClick={() => {
+              setReactionModalTab('likes');
+              setReactionModalOpen(true);
+            }}
+            className="bg-gradient-to-br from-blue-50/70 to-blue-50/30 rounded-xl p-4 border border-blue-100 flex items-center justify-between gap-4 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all group"
+            title="Clique para ver todas as matérias curtidas"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/25 group-hover:scale-105 transition-transform">
+                <ThumbsUp size={22} className="fill-white" />
+              </div>
+              <div>
+                <span className="text-2xl font-bold text-navy-900">
+                  {reactionsStats.totalLikes.toLocaleString('pt-BR')}
+                </span>
+                <p className="text-xs font-semibold text-blue-700 mt-0.5">Curtidas (Gostei)</p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
+              Ver lista →
+            </span>
+          </div>
+
+          {/* Descurtidas */}
+          <div
+            onClick={() => {
+              setReactionModalTab('dislikes');
+              setReactionModalOpen(true);
+            }}
+            className="bg-gradient-to-br from-rose-50/70 to-rose-50/30 rounded-xl p-4 border border-rose-100 flex items-center justify-between gap-4 cursor-pointer hover:shadow-md hover:border-rose-300 transition-all group"
+            title="Clique para ver todas as matérias com descurtidas"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-rose-500/25 group-hover:scale-105 transition-transform">
+                <ThumbsDown size={22} className="fill-white" />
+              </div>
+              <div>
+                <span className="text-2xl font-bold text-navy-900">
+                  {reactionsStats.totalDislikes.toLocaleString('pt-BR')}
+                </span>
+                <p className="text-xs font-semibold text-rose-700 mt-0.5">Descurtidas (Não gostei)</p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
+              Ver lista →
+            </span>
+          </div>
+
+          {/* Índice de Satisfação */}
+          <div
+            onClick={() => {
+              setReactionModalTab('all');
+              setReactionModalOpen(true);
+            }}
+            className="bg-gradient-to-br from-emerald-50/70 to-emerald-50/30 rounded-xl p-4 border border-emerald-100 flex items-center justify-between gap-4 cursor-pointer hover:shadow-md hover:border-emerald-300 transition-all group"
+            title="Clique para ver todas as matérias avaliadas"
+          >
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/25 group-hover:scale-105 transition-transform">
+                <Award size={22} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold text-navy-900">
+                    {approvalRate !== null ? `${approvalRate}%` : '—'}
+                  </span>
+                  <span className="text-xs text-navy-500">aprovação</span>
+                </div>
+                <p className="text-xs font-semibold text-emerald-700 mt-0.5">Índice Positivo</p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
+              Ver lista →
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* SEÇÃO PRINCIPAL DE MÉTRICAS & CLIQUES POR DIA */}
@@ -275,6 +444,10 @@ export default function AdminDashboard() {
                       ? Math.round((item.total_clicks / totalClicksSelectedDay) * 100)
                       : 0;
 
+                    const newsObj = newsMap.get(item.news_id);
+                    const likesCount = item.likes_count ?? newsObj?.likes_count ?? 0;
+                    const dislikesCount = item.dislikes_count ?? newsObj?.dislikes_count ?? 0;
+
                     const medalColors = [
                       'bg-amber-100 text-amber-800 border-amber-300',
                       'bg-slate-200 text-slate-800 border-slate-300',
@@ -308,8 +481,24 @@ export default function AdminDashboard() {
                         )}
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <CategoryBadge categoryId={item.category} size="sm" />
+                            <div className="inline-flex items-center gap-1.5 text-xs">
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[11px] font-bold border border-blue-100"
+                                title={`${likesCount} curtidas`}
+                              >
+                                <ThumbsUp size={10} className="fill-blue-500 text-blue-600" />
+                                {likesCount}
+                              </span>
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[11px] font-bold border border-rose-100"
+                                title={`${dislikesCount} descurtidas`}
+                              >
+                                <ThumbsDown size={10} className="fill-rose-500 text-rose-600" />
+                                {dislikesCount}
+                              </span>
+                            </div>
                           </div>
                           <Link
                             to={`/noticia/${item.slug}`}
@@ -463,6 +652,9 @@ export default function AdminDashboard() {
                 <th className="text-left text-xs font-semibold text-navy-500 uppercase tracking-wider px-6 py-3">
                   Data
                 </th>
+                <th className="text-center text-xs font-semibold text-navy-500 uppercase tracking-wider px-4 py-3">
+                  Reações
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-navy-50">
@@ -488,10 +680,28 @@ export default function AdminDashboard() {
                       {item.status === 'published' ? 'Publicado' : 'Rascunho'}
                     </span>
                   </td>
-                  <td className="px-6 py-3 text-sm text-navy-500">
+                  <td className="px-6 py-3 text-sm text-navy-500 whitespace-nowrap">
                     {item.published_at
                       ? new Date(item.published_at).toLocaleDateString('pt-BR')
                       : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-center whitespace-nowrap">
+                    <div className="inline-flex items-center gap-1.5 text-xs">
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-100"
+                        title={`${item.likes_count || 0} curtidas`}
+                      >
+                        <ThumbsUp size={11} className="fill-blue-500 text-blue-600" />
+                        {item.likes_count || 0}
+                      </span>
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 font-bold border border-rose-100"
+                        title={`${item.dislikes_count || 0} descurtidas`}
+                      >
+                        <ThumbsDown size={11} className="fill-rose-500 text-rose-600" />
+                        {item.dislikes_count || 0}
+                      </span>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -499,6 +709,187 @@ export default function AdminDashboard() {
           </table>
         </div>
       </div>
+
+      {/* Modal Detalhado de Matérias Avaliadas */}
+      <Modal
+        isOpen={reactionModalOpen}
+        onClose={() => {
+          setReactionModalOpen(false);
+          setReactionModalSearch('');
+        }}
+        title="Avaliações das Notícias pelos Leitores"
+        size="xl"
+      >
+        <div className="space-y-4">
+          {/* Abas e Filtro de Busca */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-navy-100">
+            {/* Abas */}
+            <div className="flex items-center gap-1.5 p-1 bg-navy-50 rounded-xl flex-wrap">
+              <button
+                type="button"
+                onClick={() => setReactionModalTab('likes')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  reactionModalTab === 'likes'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-navy-600 hover:text-navy-900'
+                }`}
+              >
+                <ThumbsUp size={13} className={reactionModalTab === 'likes' ? 'fill-white' : ''} />
+                <span>Curtidas ({allNewsList.filter(n => (n.likes_count || 0) > 0).length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setReactionModalTab('dislikes')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  reactionModalTab === 'dislikes'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'text-navy-600 hover:text-navy-900'
+                }`}
+              >
+                <ThumbsDown size={13} className={reactionModalTab === 'dislikes' ? 'fill-white' : ''} />
+                <span>Descurtidas ({allNewsList.filter(n => (n.dislikes_count || 0) > 0).length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setReactionModalTab('all')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  reactionModalTab === 'all'
+                    ? 'bg-navy-900 text-white shadow-xs'
+                    : 'text-navy-600 hover:text-navy-900'
+                }`}
+              >
+                <span>Todas Avaliadas ({evaluatedNews.length})</span>
+              </button>
+            </div>
+
+            {/* Campo de Busca */}
+            <div className="relative flex-1 sm:max-w-xs">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" />
+              <input
+                type="text"
+                placeholder="Buscar notícia avaliada..."
+                value={reactionModalSearch}
+                onChange={(e) => setReactionModalSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-navy-200 focus:outline-none focus:ring-2 focus:ring-accent-400 bg-white"
+              />
+            </div>
+          </div>
+
+          {/* Lista de Notícias */}
+          {filteredModalNews.length === 0 ? (
+            <div className="py-12 text-center">
+              <div className="w-12 h-12 rounded-full bg-navy-50 text-navy-400 mx-auto flex items-center justify-center mb-3">
+                <ThumbsUp size={20} />
+              </div>
+              <p className="text-sm font-semibold text-navy-800">Nenhuma notícia encontrada nesta seleção</p>
+              <p className="text-xs text-navy-500 mt-1 max-w-sm mx-auto">
+                {reactionModalSearch
+                  ? 'Nenhuma matéria corresponde ao termo buscado.'
+                  : 'Assim que os leitores avaliarem as matérias no portal, elas aparecerão listadas aqui com suas respectivas contagens.'}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-navy-50 max-h-[50vh] overflow-y-auto pr-1">
+              {filteredModalNews.map((item, idx) => {
+                const likes = item.likes_count || 0;
+                const dislikes = item.dislikes_count || 0;
+                const total = likes + dislikes;
+                const itemApproval = total > 0 ? Math.round((likes / total) * 100) : null;
+
+                return (
+                  <div key={item.id} className="py-3 flex items-center gap-3.5 hover:bg-navy-50/50 px-2 rounded-xl transition-colors group">
+                    <span className="text-xs font-bold text-navy-400 w-5 text-center shrink-0">
+                      {idx + 1}º
+                    </span>
+
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt=""
+                        className="w-14 h-10 rounded-lg object-cover bg-navy-100 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-14 h-10 rounded-lg bg-navy-100 flex items-center justify-center shrink-0">
+                        <FileText size={16} className="text-navy-400" />
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <CategoryBadge categoryId={item.category} size="sm" />
+                        {itemApproval !== null && (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            itemApproval >= 70
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : itemApproval >= 50
+                              ? 'bg-amber-50 text-amber-700'
+                              : 'bg-rose-50 text-rose-700'
+                          }`}>
+                            {itemApproval}% aprovação
+                          </span>
+                        )}
+                      </div>
+
+                      <Link
+                        to={`/noticia/${item.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs sm:text-sm font-semibold text-navy-900 hover:text-accent-600 transition-colors line-clamp-1 inline-flex items-center gap-1"
+                        title={item.title}
+                      >
+                        <span>{item.title}</span>
+                        <ArrowUpRight size={13} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                      </Link>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-2">
+                      <span
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold text-xs border border-blue-100"
+                        title="Total de curtidas"
+                      >
+                        <ThumbsUp size={12} className="fill-blue-500 text-blue-600" />
+                        {likes}
+                      </span>
+
+                      <span
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 font-bold text-xs border border-rose-100"
+                        title="Total de descurtidas"
+                      >
+                        <ThumbsDown size={12} className="fill-rose-500 text-rose-600" />
+                        {dislikes}
+                      </span>
+
+                      <Link
+                        to={`/admin/noticias/editar/${item.id}`}
+                        className="p-1.5 rounded-lg text-navy-400 hover:text-accent-600 hover:bg-navy-100 transition-colors ml-1"
+                        title="Editar notícia no admin"
+                      >
+                        <Edit3 size={15} />
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Rodapé do Modal */}
+          <div className="pt-3 border-t border-navy-100 flex items-center justify-between text-xs text-navy-500">
+            <span>
+              Total exibido: <strong className="text-navy-900">{filteredModalNews.length}</strong> matérias
+            </span>
+            <Link
+              to={`/admin/noticias?reacao=${reactionModalTab === 'all' ? 'any' : reactionModalTab}`}
+              className="font-bold text-accent-600 hover:text-accent-700 hover:underline flex items-center gap-1"
+            >
+              <span>Abrir no Gerenciador de Notícias</span>
+              <ArrowUpRight size={13} />
+            </Link>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

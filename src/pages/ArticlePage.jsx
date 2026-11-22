@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Clock, User, ArrowLeft, ArrowRight, Share2, Check, ChevronLeft, ChevronRight, Loader2, FileText, ChevronDown, Link2 } from 'lucide-react';
+import { Clock, User, ArrowLeft, ArrowRight, Share2, Check, ChevronLeft, ChevronRight, Loader2, FileText, ChevronDown, Link2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useNews } from '../hooks/useNews';
 import { supabase } from '../lib/supabase';
 import { getCategoryById } from '../data/categories';
 import CategoryBadge from '../components/ui/CategoryBadge';
 import NewsCard from '../components/news/NewsCard';
 import { recordNewsView } from '../services/analyticsService';
+import { getUserReaction, toggleReaction } from '../services/reactionService';
 import { getArticleImages } from '../lib/imageUtils';
 import { cleanPlainText } from '../lib/stringUtils';
 
@@ -170,9 +171,28 @@ export default function ArticlePage() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isGalleryHovered, setIsGalleryHovered] = useState(false);
   const [activeInstaDropdown, setActiveInstaDropdown] = useState(null); // 'top' | 'bottom' | null
+  const [userReaction, setUserReaction] = useState(null);
+  const [reactionFeedback, setReactionFeedback] = useState(false);
   const topInstaMenuRef = useRef(null);
   const bottomInstaMenuRef = useRef(null);
   const recordedArticleIdRef = useRef(null);
+
+  // Carrega a reação salva do usuário para a matéria
+  useEffect(() => {
+    if (article?.id) {
+      setUserReaction(getUserReaction(article.id));
+    }
+  }, [article?.id]);
+
+  const handleReaction = async (type) => {
+    if (!article?.id) return;
+    const res = await toggleReaction(article.id, type);
+    setUserReaction(res.reaction);
+    if (res.reaction) {
+      setReactionFeedback(true);
+      setTimeout(() => setReactionFeedback(false), 3000);
+    }
+  };
 
   // Fecha o dropdown do Instagram ao clicar fora
   useEffect(() => {
@@ -872,6 +892,49 @@ export default function ArticlePage() {
               className="ql-editor !p-0 !min-h-0 text-navy-800"
               dangerouslySetInnerHTML={{ __html: cleanArticleContent(article.content) }}
             />
+          </div>
+        </div>
+
+        {/* Bloco de Avaliação / Reações (Like e Dislike sem contadores públicos) */}
+        <div className="bg-white rounded-2xl shadow-card border border-navy-100/80 p-5 sm:p-6 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-center sm:text-left">
+            <h4 className="text-sm sm:text-base font-bold text-navy-900 flex items-center justify-center sm:justify-start gap-2">
+              O que você achou desta matéria?
+            </h4>
+            <p className="text-xs text-navy-500 mt-0.5">
+              {reactionFeedback
+                ? '✨ Obrigado pela sua avaliação!'
+                : 'Sua opinião ajuda a melhorar a qualidade do nosso jornalismo.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => handleReaction('like')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer active:scale-95 ${
+                userReaction === 'like'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25 ring-2 ring-blue-500/30'
+                  : 'bg-navy-50 hover:bg-navy-100 text-navy-700'
+              }`}
+              title="Gostei desta notícia"
+            >
+              <ThumbsUp size={16} className={userReaction === 'like' ? 'fill-current' : ''} />
+              <span>Gostei</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleReaction('dislike')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer active:scale-95 ${
+                userReaction === 'dislike'
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-600/25 ring-2 ring-rose-500/30'
+                  : 'bg-navy-50 hover:bg-navy-100 text-navy-700'
+              }`}
+              title="Não gostei desta notícia"
+            >
+              <ThumbsDown size={16} className={userReaction === 'dislike' ? 'fill-current' : ''} />
+              <span>Não gostei</span>
+            </button>
           </div>
         </div>
 

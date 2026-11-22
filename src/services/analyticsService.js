@@ -97,7 +97,7 @@ export async function getNewsViewsByDate(targetDate) {
     // Fallback: consulta direta caso a RPC não exista
     const { data: viewsData, error: viewsError } = await supabase
       .from('news_views')
-      .select('news_id, news(id, title, category, slug, image_url)')
+      .select('news_id, news(id, title, category, slug, image_url, likes_count, dislikes_count)')
       .eq('date_key', dateStr);
 
     if (viewsError) {
@@ -114,6 +114,8 @@ export async function getNewsViewsByDate(targetDate) {
         category: row.news?.category || 'geral',
         slug: row.news?.slug || '',
         image_url: row.news?.image_url || null,
+        likes_count: Number(row.news?.likes_count || 0),
+        dislikes_count: Number(row.news?.dislikes_count || 0),
         total_clicks: 0,
       };
       existing.total_clicks += 1;

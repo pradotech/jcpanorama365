@@ -21,6 +21,7 @@ import AdminNews from './pages/admin/AdminNews';
 import AdminNewsForm from './pages/admin/AdminNewsForm';
 import AdminColumnists from './pages/admin/AdminColumnists';
 import AdminEditions from './pages/admin/AdminEditions';
+import AdminAds from './pages/admin/AdminAds';
 import AdminLogin from './pages/admin/AdminLogin';
 
 function App() {
@@ -59,6 +60,7 @@ function App() {
                 <Route path="noticias/editar/:id" element={<AdminNewsForm />} />
                 <Route path="colunistas" element={<AdminColumnists />} />
                 <Route path="edicoes" element={<AdminEditions />} />
+                <Route path="anuncios" element={<AdminAds />} />
               </Route>
             </Routes>
           </BrowserRouter>
