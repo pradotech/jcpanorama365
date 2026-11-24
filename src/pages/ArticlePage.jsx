@@ -312,14 +312,14 @@ export default function ArticlePage() {
     const pageUrl = window.location.href;
 
     setMeta('name', 'description', description);
-    setMeta('property', 'og:title', 'JC Panorama 365');
-    setMeta('property', 'og:description', '&#8203;');
+    setMeta('property', 'og:title', article.title);
+    setMeta('property', 'og:description', description);
     setMeta('property', 'og:image', mainImage);
     setMeta('property', 'og:url', pageUrl);
     setMeta('property', 'og:type', 'article');
     setMeta('name', 'twitter:card', 'summary_large_image');
-    setMeta('name', 'twitter:title', 'JC Panorama 365');
-    setMeta('name', 'twitter:description', '&#8203;');
+    setMeta('name', 'twitter:title', article.title);
+    setMeta('name', 'twitter:description', description);
     setMeta('name', 'twitter:image', mainImage);
 
     // Schema.org NewsArticle JSON-LD (Google News & Discover)
@@ -432,7 +432,7 @@ export default function ArticlePage() {
   // Facebook: Compartilhamento padrão da matéria (título grande nativo e imagem oficial via Open Graph)
   const handleShareFacebook = () => {
     if (!article) return;
-    const url = window.location.href;
+    const url = window.location.href.split('?')[0];
     const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
     window.open(fbUrl, '_blank', 'noopener,noreferrer,width=600,height=500');
   };
