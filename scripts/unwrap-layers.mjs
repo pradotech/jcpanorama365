@@ -78,16 +78,17 @@ async function main() {
     console.log(`   Antes: ${content.length} bytes → Depois: ${unwrapped.length} bytes`);
   }
 
-  // Atualizar carimbo de versão no Service Worker (para invalidar cache no celular automaticamente)
-  await updateServiceWorker();
+  // Atualizar carimbo de versão no Service Worker e arquivos de controle de versão
+  await updateVersionControl();
 }
 
-async function updateServiceWorker() {
+async function updateVersionControl() {
   const timestamp = Date.now();
   const dateStr = new Date().toISOString();
   const distSw = join(import.meta.dirname, '..', 'dist', 'sw.js');
   const publicSw = join(import.meta.dirname, '..', 'public', 'sw.js');
 
+  // 1. Atualizar Service Worker
   for (const swPath of [publicSw, distSw]) {
     try {
       const content = await readFile(swPath, 'utf-8');
@@ -99,7 +100,42 @@ async function updateServiceWorker() {
       // Ignora caso arquivo não exista
     }
   }
-  console.log(`✅ Service Worker carimbado com nova versão de build: ${timestamp}`);
+
+  // 2. Gerar version.json para checagem ativa sem cache
+  const versionPayload = JSON.stringify({
+    version: String(timestamp),
+    buildTime: dateStr,
+  }, null, 2);
+
+  const publicVersion = join(import.meta.dirname, '..', 'public', 'version.json');
+  const distVersion = join(import.meta.dirname, '..', 'dist', 'version.json');
+
+  for (const vPath of [publicVersion, distVersion]) {
+    try {
+      await writeFile(vPath, versionPayload, 'utf-8');
+    } catch {
+      // Ignora erro
+    }
+  }
+
+  // 3. Atualizar carimbo __APP_VERSION__ no index.html
+  const publicIndex = join(import.meta.dirname, '..', 'index.html');
+  const distIndex = join(import.meta.dirname, '..', 'dist', 'index.html');
+
+  for (const indexPath of [publicIndex, distIndex]) {
+    try {
+      const content = await readFile(indexPath, 'utf-8');
+      const updated = content.replace(
+        /window\.__APP_VERSION__\s*=\s*['"][^'"]*['"]/,
+        `window.__APP_VERSION__ = "${timestamp}"`
+      );
+      await writeFile(indexPath, updated, 'utf-8');
+    } catch {
+      // Ignora erro
+    }
+  }
+
+  console.log(`✅ Versão de build sincronizada em sw.js, version.json e index.html: ${timestamp}`);
 }
 
 main().catch(console.error);

@@ -621,6 +621,10 @@ export default function ArticlePage() {
   const cleanArticleContent = (html) => {
     if (!html) return '';
     return html
+      // Converte qualquer alinhamento justificado para alinhamento à esquerda
+      .replace(/ql-align-justify/gi, '')
+      .replace(/text-align\s*:\s*justify\s*;?/gi, 'text-align: left;')
+      .replace(/align\s*=\s*["']?justify["']?/gi, 'align="left"')
       // Preserva parágrafos vazios ou que só continham espaços/spans como quebras de linha reais
       .replace(/<p([^>]*)>(\s|&nbsp;|<br\s*\/?>|<\/?span[^>]*>)*<\/p>/gi, '<p$1><br></p>')
       // Substitui &nbsp; e \u00A0 (espaços não-quebráveis) por espaços normais no texto

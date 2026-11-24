@@ -33,29 +33,67 @@
     <meta name="twitter:title" content="JC Panorama 365 — Informação que conecta. Todos os dias." />
     <meta name="twitter:description" content="JC Panorama 365 — Informação que conecta. Todos os dias. Portal de notícias com cobertura completa em Geral, Polícia, Política, Esportes, Economia, Brasil, Mundo e Variedades." />
     <meta name="twitter:image" content="https://jcpanorama365.com.br/logo.jpg" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700&display=swap" rel="stylesheet" />
     <title>JC Panorama 365 — Informação que conecta. Todos os dias.</title>
+    <script>
+      // Identificador de versão do build atual da aplicação
+      window.__APP_VERSION__ = "1795516815603";
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       // 1. Recarregar automaticamente se um chunk dinâmico do Vite falhar após novo deploy
-      window.addEventListener('vite:preloadError', (event) => {
+      window.addEventListener('vite:preloadError', function(event) {
         event.preventDefault();
         window.location.reload();
       });
 
-      // 2. Registro e ciclo de vida do Service Worker (PWA)
+      // 2. Verificação ativa de nova versão implantada no servidor (independente de Service Worker)
+      (function() {
+        var isReloading = false;
+
+        function checkAppVersion() {
+          if (isReloading || window.location.pathname.startsWith('/admin')) return;
+          fetch('/version.json?_t=' + Date.now(), { cache: 'no-store' })
+            .then(function(res) { return res.ok ? res.json() : null; })
+            .then(function(data) {
+              if (data && data.version && window.__APP_VERSION__ && data.version !== window.__APP_VERSION__) {
+                isReloading = true;
+                window.location.reload();
+              }
+            })
+            .catch(function() {});
+        }
+
+        // Verifica a cada 60 segundos se o app estiver visível
+        setInterval(function() {
+          if (document.visibilityState === 'visible') {
+            checkAppVersion();
+          }
+        }, 60 * 1000);
+
+        // Verifica imediatamente ao retornar para o app/aba no celular
+        document.addEventListener('visibilitychange', function() {
+          if (document.visibilityState === 'visible') {
+            checkAppVersion();
+          }
+        });
+      })();
+
+      // 3. Registro e ciclo de vida do Service Worker (PWA)
       if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
-        let isRefreshing = false;
+        var isRefreshing = false;
 
         // Quando o novo Service Worker ativa, recarrega a página silenciosamente com a versão nova
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
+        navigator.serviceWorker.addEventListener('controllerchange', function() {
           if (!isRefreshing) {
-            // Se o usuário estiver no painel administrativo editando algo, não recarrega sem aviso
             if (window.location.pathname.startsWith('/admin')) {
               return;
             }
@@ -64,23 +102,35 @@
           }
         });
 
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then((registration) => {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(function(registration) {
             // Força checagem de nova versão imediatamente ao carregar
-            registration.update().catch(() => {});
+            registration.update().catch(function() {});
 
-            // Checa atualização sempre que o usuário voltar para o navegador/app no celular
-            document.addEventListener('visibilitychange', () => {
-              if (document.visibilityState === 'visible') {
-                registration.update().catch(() => {});
+            // Ativa o novo Service Worker imediatamente ao detectá-lo
+            registration.addEventListener('updatefound', function() {
+              var newWorker = registration.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', function() {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  }
+                });
               }
             });
 
-            // Checa atualização periodicamente a cada 15 minutos em segundo plano
-            setInterval(() => {
-              registration.update().catch(() => {});
-            }, 15 * 60 * 1000);
-          }).catch(() => {});
+            // Checa atualização sempre que o usuário voltar para o navegador/app no celular
+            document.addEventListener('visibilitychange', function() {
+              if (document.visibilityState === 'visible') {
+                registration.update().catch(function() {});
+              }
+            });
+
+            // Checa atualização periodicamente a cada 2 minutos
+            setInterval(function() {
+              registration.update().catch(function() {});
+            }, 2 * 60 * 1000);
+          }).catch(function() {});
         });
       }
     </script>

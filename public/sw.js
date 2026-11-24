@@ -1,6 +1,6 @@
 // Service Worker para PWA (JC Panorama 365)
-// BUILD_TIMESTAMP: 2026-11-24T01:39:47.161Z
-const CACHE_NAME = 'jc-pwa-cache-1795484387161';
+// BUILD_TIMESTAMP: 2026-11-24T10:40:15.603Z
+const CACHE_NAME = 'jc-pwa-cache-1795516815603';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -16,6 +16,12 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
@@ -23,8 +29,13 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
     // NUNCA interceptar chamadas externas (como Supabase, APIs, fontes externas)
-    // Isso garante total compatibilidade com Chrome legado no Windows 7 e evita bloqueios de CORS
-    if (url.origin !== self.location.origin || url.hostname.includes('supabase.co')) {
+    // Nem checagem de versão ou rotas administrativas
+    if (
+      url.origin !== self.location.origin ||
+      url.hostname.includes('supabase.co') ||
+      url.pathname.includes('version.json') ||
+      url.pathname.startsWith('/admin')
+    ) {
       return;
     }
 

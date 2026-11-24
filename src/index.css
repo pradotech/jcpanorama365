@@ -199,6 +199,7 @@
   -ms-hyphens: none;
   hyphens: none;
   color: var(--color-navy-800);
+  text-align: left !important;
 }
 
 .article-content .ql-editor {
@@ -210,6 +211,7 @@
   font-size: 1.05rem;
   line-height: 1.7;
   color: var(--color-navy-800);
+  text-align: left !important;
 }
 
 .article-content p,
@@ -218,12 +220,32 @@
   padding: 0 !important;
   line-height: 1.7;
   color: var(--color-navy-700);
+  text-align: left !important;
   text-wrap: pretty;
   word-break: normal;
   overflow-wrap: break-word;
   -webkit-hyphens: none;
   -ms-hyphens: none;
   hyphens: none;
+}
+
+/* Forçar alinhamento à esquerda mesmo se o texto contiver classes ou estilos colados de justificar */
+.article-content .ql-align-justify,
+.article-content .ql-editor .ql-align-justify,
+.article-content [style*="justify" i],
+.article-content [align="justify" i] {
+  text-align: left !important;
+}
+
+/* Preservar alinhamentos intencionais de centro ou direita */
+.article-content .ql-align-center,
+.article-content .ql-editor .ql-align-center {
+  text-align: center !important;
+}
+
+.article-content .ql-align-right,
+.article-content .ql-editor .ql-align-right {
+  text-align: right !important;
 }
 
 .article-content h1,

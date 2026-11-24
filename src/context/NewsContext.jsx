@@ -124,7 +124,7 @@ export function NewsProvider({ children }) {
   useEffect(() => {
     fetchNews();
 
-    // Realtime: escutar mudanças na tabela news de forma isolada e segura
+    // 1. Supabase Realtime: escutar mudanças na tabela news de forma isolada e segura
     let channel = null;
     try {
       channel = supabase
@@ -137,12 +137,45 @@ export function NewsProvider({ children }) {
       console.warn('Realtime indisponível neste navegador:', e);
     }
 
+    // 2. Polling periódico a cada 30 segundos enquanto a aba/app estiver aberta e visível
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchNews();
+      }
+    }, 30000);
+
+    // 3. Atualizar automaticamente assim que o usuário alternar para o app/aba ou desbloquear o celular
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNews();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+
+    // 4. Sincronização instantânea entre abas no mesmo navegador (quando salva no admin de outra aba)
+    const handleStorageChange = (e) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setNews(parsed);
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     return () => {
       if (channel) {
         try {
           supabase.removeChannel(channel);
         } catch (e) {}
       }
+      clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, [fetchNews]);
 

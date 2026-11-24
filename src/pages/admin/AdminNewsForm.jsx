@@ -194,6 +194,10 @@ export default function AdminNewsForm() {
   const cleanContent = (html) => {
     if (!html) return '';
     return html
+      // Converte qualquer alinhamento justificado para alinhamento à esquerda
+      .replace(/ql-align-justify/gi, '')
+      .replace(/text-align\s*:\s*justify\s*;?/gi, 'text-align: left;')
+      .replace(/align\s*=\s*["']?justify["']?/gi, 'align="left"')
       .replace(/&nbsp;/gi, ' ')
       .replace(/\u00A0/g, ' ')
       .replace(/[\u00AD\u200B\u200C\u200D\uFEFF\u2060]/g, '')

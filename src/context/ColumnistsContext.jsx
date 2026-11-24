@@ -51,6 +51,60 @@ export function ColumnistsProvider({ children }) {
 
   useEffect(() => {
     fetchColumnists();
+
+    // 1. Supabase Realtime para colunistas
+    let channel = null;
+    try {
+      channel = supabase
+        .channel('columnists-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'columnists' }, () => {
+          fetchColumnists();
+        })
+        .subscribe();
+    } catch (e) {
+      console.warn('Realtime de colunistas indisponível:', e);
+    }
+
+    // 2. Polling periódico a cada 45 segundos se a aba estiver visível
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchColumnists();
+      }
+    }, 45000);
+
+    // 3. Atualizar automaticamente quando o usuário voltar para o navegador/app
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchColumnists();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+
+    // 4. Sincronização entre abas
+    const handleStorage = (e) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setColumnists(parsed);
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch (e) {}
+      }
+      clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [fetchColumnists]);
 
   // Adicionar colunista
