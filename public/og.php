@@ -176,6 +176,18 @@ if ($isHome) {
     ];
 }
 
+// Detectar se a requisição provém do WhatsApp (via User-Agent ou parâmetro utm_source)
+$userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+$isWhatsApp = (stripos($userAgent, 'WhatsApp') !== false) ||
+              (isset($_GET['utm_source']) && $_GET['utm_source'] === 'whatsapp') ||
+              (isset($_GET['ref']) && $_GET['ref'] === 'whatsapp');
+
+// Para o WhatsApp: o card de link exibe a foto oficial e o nome do portal ("JC Panorama 365"),
+// sem repetir o título e o subtítulo dentro do card, pois eles já vão destacados na mensagem enviada.
+// Para Facebook e demais redes: mantém o título e descrição completos no card do feed.
+$ogTitle = ($isWhatsApp && !$isHome) ? 'JC Panorama 365' : $title;
+$ogDescription = ($isWhatsApp && !$isHome) ? '' : $description;
+
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: public, max-age=300, s-maxage=600');
 ?>
@@ -190,8 +202,10 @@ header('Cache-Control: public, max-age=300, s-maxage=600');
   <!-- Open Graph / Facebook / WhatsApp -->
   <meta property="og:type" content="<?php echo $ogType; ?>">
   <meta property="og:site_name" content="JC Panorama 365">
-  <meta property="og:title" content="<?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>">
-  <meta property="og:description" content="<?php echo htmlspecialchars($description, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta property="og:title" content="<?php echo htmlspecialchars($ogTitle, ENT_QUOTES, 'UTF-8'); ?>">
+  <?php if (!empty($ogDescription)): ?>
+  <meta property="og:description" content="<?php echo htmlspecialchars($ogDescription, ENT_QUOTES, 'UTF-8'); ?>">
+  <?php endif; ?>
   <meta property="og:image" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
   <meta property="og:image:secure_url" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
   <?php

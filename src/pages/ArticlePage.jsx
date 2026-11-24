@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Clock, User, ArrowLeft, ArrowRight, Share2, Check, ChevronLeft, ChevronRight, Loader2, FileText, ChevronDown, Link2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useNews } from '../hooks/useNews';
+import { useColumnists } from '../hooks/useColumnists';
 import { supabase } from '../lib/supabase';
 import { getCategoryById } from '../data/categories';
 import CategoryBadge from '../components/ui/CategoryBadge';
@@ -159,12 +160,20 @@ function InstagramDropdownMenu({
 export default function ArticlePage() {
   const { slug } = useParams();
   const { getNewsBySlug, getNewsByCategory, loading: newsLoading } = useNews();
+  const { getColumnistById } = useColumnists();
   const contextArticle = getNewsBySlug(slug);
 
   const [directArticle, setDirectArticle] = useState(null);
   const [isDirectLoading, setIsDirectLoading] = useState(() => !contextArticle);
 
   const article = contextArticle || directArticle;
+
+  // Informações completas do colunista (com fallback para a tabela de colunistas)
+  const colObj = article?.columnist_id && getColumnistById ? getColumnistById(article.columnist_id) : null;
+  const columnistName = article?.columnist_name || colObj?.name || '';
+  const columnistRole = article?.columnist_role || colObj?.role || 'Colunista';
+  const columnistAvatar = article?.columnist_avatar || colObj?.avatar_url || '';
+  const columnistBio = article?.columnist_bio || colObj?.bio || '';
   const [copiedType, setCopiedType] = useState('');
   const [toastMessage, setToastMessage] = useState('');
   const [sharingInsta, setSharingInsta] = useState(false);
@@ -398,11 +407,14 @@ export default function ArticlePage() {
     }
   };
 
-  // WhatsApp: mantém formato rico atual (URL no início, título em negrito, subtítulo e chamada)
+  // WhatsApp: mantém formato rico (URL com utm_source no início, título em negrito, colunista se houver, subtítulo e chamada)
   const handleShareWhatsApp = () => {
     if (!article) return;
-    const url = window.location.href;
-    const shareText = `${url} 📰 *${article.title}*${article.subtitle ? `\n\n${article.subtitle}` : ''}\n\nLeia a matéria completa:`;
+    const baseUrl = window.location.origin + window.location.pathname;
+    const shareUrl = `${baseUrl}?utm_source=whatsapp`;
+    const columnistLine = columnistName ? `\n\nColunista: ${columnistName}` : '';
+    const subtitleLine = article.subtitle ? `\n\n${article.subtitle}` : '';
+    const shareText = `${shareUrl} 📰 *${article.title}*${columnistLine}${subtitleLine}\n\nLeia a matéria completa:`;
     const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
     window.open(waUrl, '_blank', 'noopener,noreferrer');
   };
@@ -436,7 +448,7 @@ export default function ArticlePage() {
       .trim();
   };
 
-  // Monta a legenda oficial completa para o Instagram (Título + Notícia toda + Link da Bio)
+  // Monta a legenda oficial completa para o Instagram (Título + Colunista + Notícia toda + Link da Bio)
   const getArticleInstagramCaption = () => {
     if (!article) return '';
     const cleanTitle = cleanPlainText(article.title);
@@ -445,6 +457,9 @@ export default function ArticlePage() {
     const bioCallout = 'Veja mais notícias clicando no link da bio.';
 
     const parts = [cleanTitle];
+    if (columnistName) {
+      parts.push(`Colunista: ${cleanPlainText(columnistName)}`);
+    }
     if (cleanSubtitle) {
       parts.push(cleanSubtitle);
     }
@@ -687,28 +702,28 @@ export default function ArticlePage() {
 
           <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-navy-100">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-              {article.columnist_name ? (
+              {columnistName ? (
                 <Link
-                  to={`/colunista/${article.columnist_id || encodeURIComponent(article.columnist_name)}`}
+                  to={`/colunista/${article.columnist_id || encodeURIComponent(columnistName)}`}
                   className="group flex items-center gap-2.5 sm:gap-3 hover:opacity-90 transition-opacity min-w-0"
                 >
-                  {article.columnist_avatar ? (
+                  {columnistAvatar ? (
                     <img
-                      src={article.columnist_avatar}
-                      alt={article.columnist_name}
+                      src={columnistAvatar}
+                      alt={columnistName}
                       className="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover border-2 border-accent-500 shadow-xs ring-2 ring-accent-100 shrink-0 group-hover:scale-105 transition-transform"
                     />
                   ) : (
                     <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-accent-100 text-accent-700 flex items-center justify-center font-extrabold text-sm sm:text-base shrink-0 border-2 border-accent-300 shadow-xs group-hover:scale-105 transition-transform">
-                      {article.columnist_name.charAt(0)}
+                      {columnistName.charAt(0)}
                     </div>
                   )}
                   <div className="min-w-0">
                     <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-accent-600 block leading-none mb-0.5 truncate">
-                      {article.columnist_role || 'Colunista'}
+                      {columnistRole}
                     </span>
                     <h2 className="text-sm sm:text-base font-extrabold text-navy-950 leading-tight group-hover:text-accent-600 transition-colors truncate">
-                      {article.columnist_name}
+                      {columnistName}
                     </h2>
                     <p className="text-[11px] sm:text-xs text-navy-500 flex items-center gap-1 mt-0.5 whitespace-nowrap">
                       <Clock size={11} className="text-navy-400 shrink-0" />
@@ -1014,7 +1029,7 @@ export default function ArticlePage() {
         </div>
 
         {/* Bloco de Autoria / Colunista abaixo do texto */}
-        {article.columnist_name ? (
+        {columnistName ? (
           <div
             className="rounded-2xl shadow-xl p-6 md:p-8 mb-8 border border-navy-700/50 relative overflow-hidden text-white"
             style={{
@@ -1027,30 +1042,30 @@ export default function ArticlePage() {
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-accent-400/10 rounded-full blur-2xl pointer-events-none" />
 
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 md:gap-6 relative z-10 text-center sm:text-left">
-              {article.columnist_avatar ? (
+              {columnistAvatar ? (
                 <Link
-                  to={`/colunista/${article.columnist_id || encodeURIComponent(article.columnist_name)}`}
+                  to={`/colunista/${article.columnist_id || encodeURIComponent(columnistName)}`}
                   className="relative shrink-0 group"
                 >
                   <img
-                    src={article.columnist_avatar}
-                    alt={article.columnist_name}
+                    src={columnistAvatar}
+                    alt={columnistName}
                     className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-3 border-accent-400 shadow-xl ring-4 ring-accent-500/20 group-hover:scale-105 transition-transform"
                   />
                   <span className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 border-2 border-[#0F1A2E] rounded-full" />
                 </Link>
               ) : (
                 <Link
-                  to={`/colunista/${article.columnist_id || encodeURIComponent(article.columnist_name)}`}
+                  to={`/colunista/${article.columnist_id || encodeURIComponent(columnistName)}`}
                   className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-accent-600 flex items-center justify-center text-white text-3xl font-bold border-2 border-white/20 shadow-xl shrink-0 hover:scale-105 transition-transform"
                 >
-                  {article.columnist_name.charAt(0)}
+                  {columnistName.charAt(0)}
                 </Link>
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 mb-2">
                   <span className="text-xs font-extrabold uppercase tracking-wider text-white bg-accent-500 px-3 py-1 rounded-full shadow-sm">
-                    {article.columnist_role || 'Colunista'}
+                    {columnistRole}
                   </span>
                   <span className="text-xs font-semibold text-accent-200 tracking-wide">
                     JC Panorama 365
@@ -1058,15 +1073,15 @@ export default function ArticlePage() {
                 </div>
                 <h3 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-2 drop-shadow-sm">
                   <Link
-                    to={`/colunista/${article.columnist_id || encodeURIComponent(article.columnist_name)}`}
+                    to={`/colunista/${article.columnist_id || encodeURIComponent(columnistName)}`}
                     className="hover:text-accent-300 transition-colors"
                   >
-                    {article.columnist_name}
+                    {columnistName}
                   </Link>
                 </h3>
-                {article.columnist_bio ? (
+                {columnistBio ? (
                   <p className="text-sm md:text-base text-slate-100/90 leading-relaxed max-w-2xl font-normal mb-4">
-                    {article.columnist_bio}
+                    {columnistBio}
                   </p>
                 ) : (
                   <p className="text-sm md:text-base text-slate-200/80 leading-relaxed font-normal mb-4">
