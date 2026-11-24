@@ -1,6 +1,6 @@
 // Service Worker para PWA (JC Panorama 365)
-// BUILD_TIMESTAMP: 2026-11-22T01:09:34.163Z
-const CACHE_NAME = 'jc-pwa-cache-1795309774163';
+// BUILD_TIMESTAMP: 2026-11-24T01:38:58.248Z
+const CACHE_NAME = 'jc-pwa-cache-1795484338248';
 
 self.addEventListener('install', () => {
   self.skipWaiting();

@@ -14,7 +14,7 @@ import { getAds } from '../services/adService';
 import { Clock } from 'lucide-react';
 
 export default function HomePage() {
-  const { getFeaturedNews, getHomeNews, getNewsByCategory, loading } = useNews();
+  const { getFeaturedNews, getHomeNews, getNewsByCategory, getAllColumnistNews, loading } = useNews();
   const [ads, setAds] = useState([]);
 
   useEffect(() => {
@@ -42,10 +42,12 @@ export default function HomePage() {
   // Últimas notícias da home (até 16 cards, respeitando prioridade de posição e data)
   const latestNews = homeNews.slice(0, 16);
 
-  // Artigos de colunistas da página inicial
-  const columnistArticles = homeNews.filter(
-    article => article.category === 'colunistas' || Boolean(article.columnist_id) || Boolean(article.columnist_name)
-  );
+  // Artigos de todos os colunistas (trazendo todos os publicados, sem limitar à homeNews)
+  const columnistArticles = getAllColumnistNews
+    ? getAllColumnistNews()
+    : homeNews.filter(
+        article => article.category === 'colunistas' || Boolean(article.columnist_id) || Boolean(article.columnist_name)
+      );
   
   // Agrupar notícias da home por categoria (garantindo que colunistas não fiquem em variedades)
   const categoryNewsMap = {};
