@@ -176,18 +176,6 @@ if ($isHome) {
     ];
 }
 
-// Detectar se a requisição provém do WhatsApp (via User-Agent ou parâmetro utm_source)
-$userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
-$isWhatsApp = (stripos($userAgent, 'WhatsApp') !== false) ||
-              (isset($_GET['utm_source']) && $_GET['utm_source'] === 'whatsapp') ||
-              (isset($_GET['ref']) && $_GET['ref'] === 'whatsapp');
-
-// Para o WhatsApp: o card de link exibe a foto oficial e o nome do portal ("JC Panorama 365"),
-// sem repetir o título e o subtítulo dentro do card, pois eles já vão destacados na mensagem enviada.
-// Para Facebook e demais redes: mantém o título e descrição completos no card do feed.
-$ogTitle = ($isWhatsApp && !$isHome) ? 'JC Panorama 365' : $title;
-$ogDescription = ($isWhatsApp && !$isHome) ? '' : $description;
-
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: public, max-age=300, s-maxage=600');
 ?>
@@ -199,13 +187,11 @@ header('Cache-Control: public, max-age=300, s-maxage=600');
   <meta name="description" content="">
   <meta name="google-site-verification" content="tcHSM_-VUwLLq_1-2afhEkpP-InydMX2LqyEXD8W1lk">
 
-  <!-- Open Graph / Facebook / WhatsApp -->
+  <!-- Open Graph / Facebook / WhatsApp (Exibe marca/home no card para não duplicar título e subtítulo da mensagem) -->
   <meta property="og:type" content="<?php echo $ogType; ?>">
   <meta property="og:site_name" content="JC Panorama 365">
-  <meta property="og:title" content="<?php echo htmlspecialchars($ogTitle, ENT_QUOTES, 'UTF-8'); ?>">
-  <?php if (!empty($ogDescription)): ?>
-  <meta property="og:description" content="<?php echo htmlspecialchars($ogDescription, ENT_QUOTES, 'UTF-8'); ?>">
-  <?php endif; ?>
+  <meta property="og:title" content="JC Panorama 365">
+  <meta property="og:description" content="&#8203;">
   <meta property="og:image" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
   <meta property="og:image:secure_url" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
   <?php
@@ -228,8 +214,8 @@ header('Cache-Control: public, max-age=300, s-maxage=600');
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="<?php echo htmlspecialchars($title, ENT_QUOTES, 'UTF-8'); ?>">
-  <meta name="twitter:description" content="<?php echo htmlspecialchars($description, ENT_QUOTES, 'UTF-8'); ?>">
+  <meta name="twitter:title" content="JC Panorama 365">
+  <meta name="twitter:description" content="&#8203;">
   <meta name="twitter:image" content="<?php echo htmlspecialchars($imageUrl, ENT_QUOTES, 'UTF-8'); ?>">
 
   <!-- Canonical -->

@@ -312,14 +312,14 @@ export default function ArticlePage() {
     const pageUrl = window.location.href;
 
     setMeta('name', 'description', description);
-    setMeta('property', 'og:title', article.title);
-    setMeta('property', 'og:description', description);
+    setMeta('property', 'og:title', 'JC Panorama 365');
+    setMeta('property', 'og:description', '&#8203;');
     setMeta('property', 'og:image', mainImage);
     setMeta('property', 'og:url', pageUrl);
     setMeta('property', 'og:type', 'article');
     setMeta('name', 'twitter:card', 'summary_large_image');
-    setMeta('name', 'twitter:title', article.title);
-    setMeta('name', 'twitter:description', description);
+    setMeta('name', 'twitter:title', 'JC Panorama 365');
+    setMeta('name', 'twitter:description', '&#8203;');
     setMeta('name', 'twitter:image', mainImage);
 
     // Schema.org NewsArticle JSON-LD (Google News & Discover)
@@ -407,16 +407,26 @@ export default function ArticlePage() {
     }
   };
 
-  // WhatsApp: mantém formato rico (URL com utm_source no início, título em negrito, colunista se houver, subtítulo e chamada)
+  // WhatsApp: mantém formato rico (URL no início, título em negrito, colunista se houver, subtítulo e chamada)
   const handleShareWhatsApp = () => {
     if (!article) return;
-    const baseUrl = window.location.origin + window.location.pathname;
-    const shareUrl = `${baseUrl}?utm_source=whatsapp`;
+    const url = window.location.href.split('?')[0];
     const columnistLine = columnistName ? `\n\nColunista: ${columnistName}` : '';
     const subtitleLine = article.subtitle ? `\n\n${article.subtitle}` : '';
-    const shareText = `${shareUrl} 📰 *${article.title}*${columnistLine}${subtitleLine}\n\nLeia a matéria completa:`;
+    const shareText = `${url} 📰 *${article.title}*${columnistLine}${subtitleLine}\n\nLeia a matéria completa:`;
     const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
-    window.open(waUrl, '_blank', 'noopener,noreferrer');
+
+    // No celular, 'window.open("_blank")' deixa uma aba 'about:blank' aberta quando o app do WhatsApp é acionado.
+    // Usar window.location.href no celular aciona o app diretamente e preserva a página da matéria ao retornar.
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (typeof window !== 'undefined' && 'ontouchstart' in window);
+
+    if (isMobile) {
+      window.location.href = waUrl;
+    } else {
+      window.open(waUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   // Facebook: Compartilhamento padrão da matéria (título grande nativo e imagem oficial via Open Graph)
